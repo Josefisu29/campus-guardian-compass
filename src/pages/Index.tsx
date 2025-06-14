@@ -31,7 +31,7 @@ const Index = () => {
     );
   }
 
-  // If no authenticated user
+  // If no authenticated user, show landing page or auth
   if (!user) {
     console.log('No authenticated user, showAuth:', showAuth);
     if (!showAuth) {
@@ -40,17 +40,44 @@ const Index = () => {
     return <Auth />;
   }
 
-  // Route authenticated users based on role
+  // Role-based access control and routing
   console.log('Routing authenticated user with role:', user.role);
   
+  // Admin access - only users with 'admin' role
   if (user.role === 'admin') {
-    console.log('Redirecting to AdminDashboard');
+    console.log('Granting admin access to:', user.email);
     return <AdminDashboard />;
   }
 
-  // Both students and staff use the same dashboard
-  console.log('Redirecting to StudentDashboard for role:', user.role);
-  return <StudentDashboard />;
+  // Student and Staff access - both use StudentDashboard but with different permissions
+  if (user.role === 'student' || user.role === 'staff') {
+    console.log(`Granting ${user.role} access to:`, user.email);
+    return <StudentDashboard />;
+  }
+
+  // Fallback for users with invalid/unknown roles
+  console.warn('User has invalid role:', user.role);
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+      <div className="text-center max-w-md">
+        <div className="text-red-600 mb-4">
+          <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+        <p className="text-gray-600 mb-4">
+          Your account role ({user.role}) is not recognized. Please contact an administrator.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default Index;
