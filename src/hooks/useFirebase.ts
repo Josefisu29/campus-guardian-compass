@@ -1,44 +1,90 @@
 
 import { useState, useEffect } from 'react';
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  increment 
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
-// Mock Firebase hook for demonstration
-// In a real implementation, this would connect to Firebase Firestore
+interface Alert {
+  id: string;
+  message: string;
+  coords: [number, number];
+  timestamp: string;
+  type?: string;
+}
+
+interface Incident {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  coords: [number, number];
+  timestamp: string;
+  reportedBy: string;
+}
+
 export const useFirebase = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [incidents, setIncidents] = useState([]);
-  const [userPoints, setUserPoints] = useState(0);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const { user } = useAuth();
+  const userPoints = user?.points || 0;
 
-  // Simulate real-time data updates
+  // Listen to alerts collection
   useEffect(() => {
-    // Simulate loading initial data
-    const timer = setTimeout(() => {
-      setAlerts([
-        {
-          id: 1,
-          message: 'Construction work near Science Building',
-          coords: [37.423, -122.085],
-          timestamp: new Date().toISOString()
-        }
-      ]);
-    }, 2000);
+    const unsubscribe = onSnapshot(collection(db, 'alerts'), (snapshot) => {
+      const alertsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Alert[];
+      setAlerts(alertsData);
+    });
 
-    return () => clearTimeout(timer);
+    return () => unsubscribe();
   }, []);
 
-  const updateUserPoints = (points) => {
-    setUserPoints(prev => prev + points);
-    // In a real app, this would update Firebase Firestore
-    console.log(`User earned ${points} points`);
+  // Listen to incidents collection
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, 'incidents'), (snapshot) => {
+      const incidentsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Incident[];
+      setIncidents(incidentsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const updateUserPoints = async (points: number) => {
+    if (user) {
+      await updateDoc(doc(db, 'users', user.uid), {
+        points: increment(points)
+      });
+      console.log(`User earned ${points} points`);
+    }
   };
 
-  const addIncident = (incident) => {
-    setIncidents(prev => [...prev, { ...incident, id: Date.now() }]);
-    // In a real app, this would save to Firebase Firestore
+  const addIncident = async (incident: Omit<Incident, 'id' | 'timestamp' | 'reportedBy'>) => {
+    if (user) {
+      await addDoc(collection(db, 'incidents'), {
+        ...incident,
+        timestamp: new Date().toISOString(),
+        reportedBy: user.uid
+      });
+    }
   };
 
-  const addAlert = (alert) => {
-    setAlerts(prev => [...prev, { ...alert, id: Date.now() }]);
-    // In a real app, this would save to Firebase Firestore
+  const addAlert = async (alert: Omit<Alert, 'id' | 'timestamp'>) => {
+    await addDoc(collection(db, 'alerts'), {
+      ...alert,
+      timestamp: new Date().toISOString()
+    });
   };
 
   return {

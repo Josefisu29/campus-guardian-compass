@@ -1,5 +1,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 
 interface User {
   uid: string;
@@ -25,21 +34,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const login = async (email: string, password: string) => {
-    // Placeholder for Firebase auth
-    setUser({ uid: '1', email, role: 'student' });
+    await signInWithEmailAndPassword(auth, email, password);
   };
 
   const signup = async (email: string, password: string, name: string, role: string) => {
-    // Placeholder for Firebase auth
-    setUser({ uid: '1', email, role: role as 'admin' | 'student' | 'staff', name });
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+    
+    // Create user document in Firestore
+    await setDoc(doc(db, 'users', firebaseUser.uid), {
+      email: firebaseUser.email,
+      name: name,
+      role: role,
+      points: 0,
+      badges: [],
+      createdAt: new Date()
+    });
   };
 
   const logout = async () => {
-    setUser(null);
+    await signOut(auth);
   };
 
   useEffect(() => {
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        // Get user data from Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email!,
+            role: userData.role || 'student',
+            name: userData.name,
+            points: userData.points || 0,
+            badges: userData.badges || []
+          });
+        } else {
+          // Default user data if document doesn't exist
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email!,
+            role: 'student'
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   return (
