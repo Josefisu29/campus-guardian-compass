@@ -1,17 +1,23 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Shield, Clock } from 'lucide-react';
+import AlertModal from './AlertModal';
 
 const SafetyAlerts = ({ alerts }) => {
+  const [selectedAlert, setSelectedAlert] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const sampleAlerts = [
     {
       id: 1,
       type: 'weather',
       severity: 'high',
       title: 'Severe Weather Warning',
-      message: 'Heavy rain and strong winds expected. Seek indoor shelter.',
+      message: 'Heavy rain and strong winds expected. Seek indoor shelter immediately.',
       location: 'Campus-wide',
       time: '2 minutes ago',
+      timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+      coords: [37.422, -122.084],
       active: true
     },
     {
@@ -19,9 +25,11 @@ const SafetyAlerts = ({ alerts }) => {
       type: 'security',
       severity: 'medium',
       title: 'Construction Zone',
-      message: 'North entrance blocked due to maintenance work.',
+      message: 'North entrance blocked due to maintenance work. Use alternative routes.',
       location: 'North Campus',
       time: '15 minutes ago',
+      timestamp: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      coords: [37.423, -122.085],
       active: true
     },
     {
@@ -32,6 +40,8 @@ const SafetyAlerts = ({ alerts }) => {
       message: 'Fire drill successfully completed. Normal operations resumed.',
       location: 'Science Building',
       time: '1 hour ago',
+      timestamp: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+      coords: [37.421, -122.083],
       active: false
     }
   ];
@@ -62,6 +72,16 @@ const SafetyAlerts = ({ alerts }) => {
     }
   };
 
+  const handleAlertClick = (alert) => {
+    setSelectedAlert(alert);
+    setIsModalOpen(true);
+  };
+
+  const handleAcknowledge = (alertId) => {
+    console.log('Alert acknowledged:', alertId);
+    // Here you would typically update the alert status in your database
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-xl shadow-lg p-6">
@@ -80,7 +100,8 @@ const SafetyAlerts = ({ alerts }) => {
             {allAlerts.filter(alert => alert.active).map((alert) => (
               <div
                 key={alert.id}
-                className={`border-l-4 p-4 rounded-lg ${getSeverityColor(alert.severity)}`}
+                className={`border-l-4 p-4 rounded-lg cursor-pointer hover:shadow-md transition-shadow ${getSeverityColor(alert.severity)}`}
+                onClick={() => handleAlertClick(alert)}
               >
                 <div className="flex items-start space-x-3">
                   {getSeverityIcon(alert.severity)}
@@ -138,7 +159,8 @@ const SafetyAlerts = ({ alerts }) => {
             {allAlerts.filter(alert => !alert.active).map((alert) => (
               <div
                 key={alert.id}
-                className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg opacity-75"
+                className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg opacity-75 cursor-pointer hover:opacity-100 transition-opacity"
+                onClick={() => handleAlertClick(alert)}
               >
                 <Shield className="h-4 w-4 text-gray-500" />
                 <div className="flex-1">
@@ -153,6 +175,14 @@ const SafetyAlerts = ({ alerts }) => {
           </div>
         </div>
       </div>
+
+      {/* Alert Modal */}
+      <AlertModal
+        alert={selectedAlert}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAcknowledge={handleAcknowledge}
+      />
     </div>
   );
 };
