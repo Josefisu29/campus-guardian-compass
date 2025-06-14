@@ -1,24 +1,592 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>campus-guardian-compass</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campus Navigator - Smart Campus Navigation</title>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .hero-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233B82F6' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .fade-in.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body class="bg-gray-50">
+  <!-- Landing Page -->
+  <div id="landingPage" class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex items-center">
+            <div class="flex-shrink-0 flex items-center">
+              <div class="bg-blue-600 p-2 rounded-lg">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+              </div>
+              <span class="ml-3 text-xl font-bold text-gray-900">Campus Navigator</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button onclick="showLogin()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md font-medium">
+              Sign In
+            </button>
+            <button onclick="showSignup()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">
+              Get Started
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
 
-    <meta property="og:title" content="campus-guardian-compass" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <!-- Hero Section -->
+    <div class="hero-pattern bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center">
+          <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6 fade-in">
+            Navigate Your Campus
+            <span class="text-blue-600">Smartly & Safely</span>
+          </h1>
+          <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto fade-in">
+            Your intelligent campus companion with real-time safety alerts, crowdsourced reporting, 
+            and gamified exploration. Make every journey on campus safe, efficient, and rewarding.
+          </p>
+          <div class="space-x-4 fade-in">
+            <button onclick="showSignup()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
+              Start Exploring
+            </button>
+            <button onclick="showLogin()" class="border border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-lg text-lg font-semibold">
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+    <!-- Features Section -->
+    <div class="py-20 bg-white">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl font-bold text-gray-900 mb-4">Everything You Need for Campus Navigation</h2>
+          <p class="text-gray-600 max-w-2xl mx-auto">From interactive maps to safety alerts and gamified exploration</p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div class="text-center p-6 fade-in">
+            <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Interactive Navigation</h3>
+            <p class="text-gray-600">Real-time directions with accessibility options and offline support</p>
+          </div>
+          
+          <div class="text-center p-6 fade-in">
+            <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Safety Alerts</h3>
+            <p class="text-gray-600">Real-time safety notifications and safe route recommendations</p>
+          </div>
+          
+          <div class="text-center p-6 fade-in">
+            <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <h3 class="text-xl font-semibold mb-2">Gamified Experience</h3>
+            <p class="text-gray-600">Earn points, unlock badges, and get rewards for campus exploration</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Welcome Back</h2>
+        <p class="text-gray-600">Sign in to your Campus Navigator account</p>
+      </div>
+      
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" id="loginEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input type="password" id="loginPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium">
+          Sign In
+        </button>
+      </form>
+      
+      <div class="mt-4 text-center">
+        <p class="text-gray-600">Don't have an account? 
+          <button onclick="showSignup()" class="text-blue-600 hover:underline">Sign up</button>
+        </p>
+      </div>
+      
+      <button onclick="hideModals()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Signup Modal -->
+  <div id="signupModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+      <div class="text-center mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Join Campus Navigator</h2>
+        <p class="text-gray-600">Create your account and start exploring</p>
+      </div>
+      
+      <form id="signupForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+          <input type="text" id="signupName" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" id="signupEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <input type="password" id="signupPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+          <select id="signupRole" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select your role</option>
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium">
+          Create Account
+        </button>
+      </form>
+      
+      <div class="mt-4 text-center">
+        <p class="text-gray-600">Already have an account? 
+          <button onclick="showLogin()" class="text-blue-600 hover:underline">Sign in</button>
+        </p>
+      </div>
+      
+      <button onclick="hideModals()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Campus Navigator App (Hidden Initially) -->
+  <div id="campusApp" class="hidden min-h-screen">
+    <!-- Header -->
+    <header class="p-4 bg-blue-600 text-white">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-xl font-bold">Campus Navigator</h1>
+          <p id="userInfo">Welcome back!</p>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
+            <span id="pointsDisplay">0 points</span>
+          </div>
+          <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm">
+            Logout
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Search -->
+    <div class="p-4 flex space-x-2">
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search (e.g., Library, Science Building, Cafeteria)"
+        class="p-2 border rounded w-full"
+      />
+      <button onclick="handleSearch()" class="p-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+        Search
+      </button>
+    </div>
+
+    <!-- Role-specific controls -->
+    <div id="studentControls" class="p-4 flex space-x-2 hidden">
+      <input
+        type="text"
+        id="reportInput"
+        placeholder="Report an issue (e.g., Broken sidewalk)"
+        class="p-2 border rounded w-full"
+      />
+      <button onclick="handleReport()" class="p-2 bg-green-500 text-white rounded hover:bg-green-600">
+        Report
+      </button>
+    </div>
+
+    <div id="adminControls" class="p-4 flex space-x-2 hidden">
+      <input
+        type="text"
+        id="alertInput"
+        placeholder="Create alert (e.g., Security issue)"
+        class="p-2 border rounded w-full"
+      />
+      <button onclick="handleCreateAlert()" class="p-2 bg-orange-500 text-white rounded hover:bg-orange-600">
+        Send Alert
+      </button>
+    </div>
+
+    <!-- Map -->
+    <div id="map" class="h-96"></div>
+
+    <!-- Alerts -->
+    <div id="alertsContainer" class="p-4 bg-yellow-100 hidden">
+      <p class="font-bold">Safety Alerts:</p>
+      <div id="alertsList"></div>
+    </div>
+
+    <!-- Reports -->
+    <div id="reportsContainer" class="p-4 bg-red-100 hidden">
+      <p class="font-bold">Crowdsourced Reports:</p>
+      <div id="reportsList"></div>
+    </div>
+
+    <!-- Directions -->
+    <div id="directionsContainer" class="p-4 bg-gray-100 hidden">
+      <div id="directionsContent"></div>
+    </div>
+  </div>
+
+  <script>
+    // App state
+    let currentUser = null;
+    let map = null;
+    let alerts = [];
+    let reports = [];
+    let points = 0;
+    let badges = [];
+    let destination = null;
+
+    // Campus locations
+    const locations = {
+      'Library': [-122.084, 37.422],
+      'Science Building': [-122.085, 37.423],
+      'Cafeteria': [-122.083, 37.421]
+    };
+
+    // Initialize fade-in animations
+    document.addEventListener('DOMContentLoaded', function() {
+      const fadeElements = document.querySelectorAll('.fade-in');
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      });
+      
+      fadeElements.forEach(el => observer.observe(el));
+    });
+
+    // Modal functions
+    function showLogin() {
+      hideModals();
+      document.getElementById('loginModal').classList.remove('hidden');
+      document.getElementById('loginModal').classList.add('flex');
+    }
+
+    function showSignup() {
+      hideModals();
+      document.getElementById('signupModal').classList.remove('hidden');
+      document.getElementById('signupModal').classList.add('flex');
+    }
+
+    function hideModals() {
+      document.getElementById('loginModal').classList.add('hidden');
+      document.getElementById('loginModal').classList.remove('flex');
+      document.getElementById('signupModal').classList.add('hidden');
+      document.getElementById('signupModal').classList.remove('flex');
+    }
+
+    // Authentication functions
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      
+      // Simulate login (in real app, validate against backend)
+      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
+      const user = users.find(u => u.email === email && u.password === password);
+      
+      if (user) {
+        currentUser = user;
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        showApp();
+      } else {
+        alert('Invalid credentials');
+      }
+    });
+
+    document.getElementById('signupForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const role = document.getElementById('signupRole').value;
+      
+      // Save user (in real app, send to backend)
+      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
+      
+      if (users.find(u => u.email === email)) {
+        alert('Email already exists');
+        return;
+      }
+      
+      const newUser = { name, email, password, role, points: 0, badges: [] };
+      users.push(newUser);
+      localStorage.setItem('campusUsers', JSON.stringify(users));
+      
+      currentUser = newUser;
+      localStorage.setItem('currentUser', JSON.stringify(newUser));
+      showApp();
+    });
+
+    // App functions
+    function showApp() {
+      hideModals();
+      document.getElementById('landingPage').classList.add('hidden');
+      document.getElementById('campusApp').classList.remove('hidden');
+      
+      // Update user info
+      document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name} (${currentUser.role})`;
+      document.getElementById('pointsDisplay').textContent = `${currentUser.points || 0} points`;
+      
+      // Show role-specific controls
+      if (currentUser.role === 'admin') {
+        document.getElementById('adminControls').classList.remove('hidden');
+      } else {
+        document.getElementById('studentControls').classList.remove('hidden');
+      }
+      
+      // Initialize map
+      initializeMap();
+      
+      // Load user data
+      points = currentUser.points || 0;
+      badges = currentUser.badges || [];
+    }
+
+    function logout() {
+      localStorage.removeItem('currentUser');
+      currentUser = null;
+      document.getElementById('campusApp').classList.add('hidden');
+      document.getElementById('landingPage').classList.remove('hidden');
+      
+      // Reset app state
+      if (map) {
+        map.remove();
+        map = null;
+      }
+      alerts = [];
+      reports = [];
+      points = 0;
+      badges = [];
+    }
+
+    function initializeMap() {
+      if (map) return;
+      
+      mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Replace with your token
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: [-122.084, 37.422],
+        zoom: 15
+      });
+
+      map.addControl(new mapboxgl.NavigationControl());
+
+      // Simulate safety alert after 5 seconds
+      setTimeout(() => {
+        const alert = {
+          message: 'Security alert near Cafeteria',
+          coords: [-122.083, 37.421],
+          time: new Date().toLocaleTimeString()
+        };
+        alerts.push(alert);
+        updateAlertsDisplay();
+        new mapboxgl.Marker({ color: 'orange' }).setLngLat(alert.coords).addTo(map);
+      }, 5000);
+    }
+
+    function handleSearch() {
+      const query = document.getElementById('searchInput').value;
+      const coords = locations[query];
+      
+      if (coords) {
+        destination = coords;
+        points += 10;
+        updatePoints();
+        
+        if (map) {
+          map.flyTo({ center: coords });
+          new mapboxgl.Marker().setLngLat(coords).addTo(map);
+        }
+        
+        // Show directions
+        document.getElementById('directionsContainer').classList.remove('hidden');
+        document.getElementById('directionsContent').innerHTML = `
+          <p><strong>Destination:</strong> ${query}</p>
+          <p><strong>Directions:</strong> Walk straight, then turn left (simplified)</p>
+          <div class="mt-2 p-2 bg-blue-50 rounded">
+            <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
+          </div>
+        `;
+      } else {
+        alert('Location not found!');
+      }
+    }
+
+    function handleReport() {
+      const issue = document.getElementById('reportInput').value;
+      if (!issue) return;
+      
+      const report = {
+        issue,
+        coords: map ? map.getCenter().toArray() : [-122.084, 37.422],
+        time: new Date().toLocaleTimeString(),
+        status: 'pending',
+        reporter: currentUser.name
+      };
+      
+      reports.push(report);
+      document.getElementById('reportInput').value = '';
+      
+      if (currentUser.role !== 'admin') {
+        points += 20;
+        updatePoints();
+      }
+      
+      updateReportsDisplay();
+      
+      if (map) {
+        new mapboxgl.Marker({ color: 'red' }).setLngLat(report.coords).addTo(map);
+      }
+    }
+
+    function handleCreateAlert() {
+      const message = document.getElementById('alertInput').value;
+      if (!message) return;
+      
+      const alert = {
+        message,
+        coords: map ? map.getCenter().toArray() : [-122.084, 37.422],
+        time: new Date().toLocaleTimeString()
+      };
+      
+      alerts.push(alert);
+      document.getElementById('alertInput').value = '';
+      updateAlertsDisplay();
+      
+      if (map) {
+        new mapboxgl.Marker({ color: 'orange' }).setLngLat(alert.coords).addTo(map);
+      }
+    }
+
+    function updatePoints() {
+      currentUser.points = points;
+      document.getElementById('pointsDisplay').textContent = `${points} points`;
+      
+      // Save to localStorage
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
+      const userIndex = users.findIndex(u => u.email === currentUser.email);
+      if (userIndex !== -1) {
+        users[userIndex] = currentUser;
+        localStorage.setItem('campusUsers', JSON.stringify(users));
+      }
+    }
+
+    function updateAlertsDisplay() {
+      if (alerts.length > 0) {
+        document.getElementById('alertsContainer').classList.remove('hidden');
+        document.getElementById('alertsList').innerHTML = alerts.map(alert => 
+          `<p>${alert.message} at ${alert.time}</p>`
+        ).join('');
+      }
+    }
+
+    function updateReportsDisplay() {
+      if (reports.length > 0) {
+        document.getElementById('reportsContainer').classList.remove('hidden');
+        document.getElementById('reportsList').innerHTML = reports.map((report, index) => `
+          <div class="flex items-center space-x-2 mb-2">
+            <p>${report.issue} at ${report.time} (${report.status}) - by ${report.reporter}</p>
+            ${currentUser.role === 'admin' && report.status === 'pending' ? `
+              <button onclick="moderateReport(${index}, 'approve')" class="px-2 py-1 bg-green-500 text-white rounded text-xs">
+                Approve
+              </button>
+              <button onclick="moderateReport(${index}, 'reject')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">
+                Reject
+              </button>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    function moderateReport(index, action) {
+      if (currentUser.role !== 'admin') return;
+      
+      if (action === 'approve') {
+        reports[index].status = 'approved';
+      } else {
+        reports.splice(index, 1);
+      }
+      
+      updateReportsDisplay();
+    }
+
+    // Check if user is already logged in
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      currentUser = JSON.parse(savedUser);
+      showApp();
+    }
+  </script>
+</body>
 </html>
