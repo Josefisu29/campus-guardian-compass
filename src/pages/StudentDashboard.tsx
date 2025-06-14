@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MapPin, AlertTriangle, Award, Users, Navigation, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,8 +9,10 @@ import SafetyAlerts from '../components/SafetyAlerts';
 import IncidentReport from '../components/IncidentReport';
 import IndoorNavigation from '../components/IndoorNavigation';
 import MultiModalRouting from '../components/MultiModalRouting';
+import EventNotificationSystem from '../components/EventNotificationSystem';
 import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
+import { afitBuildings } from '../data/afitBuildings';
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -19,6 +20,9 @@ const StudentDashboard = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [activeTab, setActiveTab] = useState('map');
+
+  // Get all events from AFIT buildings
+  const allEvents = afitBuildings.flatMap(building => building.events || []);
 
   // Get user's current location
   useEffect(() => {
@@ -54,19 +58,22 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Event Notification System */}
+      <EventNotificationSystem events={allEvents} />
+      
       {/* Header */}
       <div className="bg-white shadow-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Campus Navigator</h1>
-                <p className="text-gray-600">Welcome back, {user?.name || userRole}!</p>
+                <h1 className="text-2xl font-bold text-gray-900">AFIT Campus Navigator</h1>
+                <p className="text-gray-600">Welcome back, {user?.name || userRole}! 🇳🇬</p>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{user?.email}</p>
-                  <p className="text-xs text-gray-500">{userRole}</p>
+                  <p className="text-xs text-gray-500">{userRole} • AFIT</p>
                 </div>
                 <div className="flex items-center space-x-2 bg-yellow-100 px-3 py-2 rounded-full">
                   <Award className="h-4 w-4 text-yellow-600" />
@@ -81,7 +88,7 @@ const StudentDashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="map">Map</TabsTrigger>
+            <TabsTrigger value="map">Campus Map</TabsTrigger>
             <TabsTrigger value="indoor">Indoor Nav</TabsTrigger>
             <TabsTrigger value="routing">Routing</TabsTrigger>
             <TabsTrigger value="safety">Safety</TabsTrigger>
@@ -110,12 +117,40 @@ const StudentDashboard = () => {
                   </p>
                   <div className="mt-4 p-4 bg-blue-50 rounded-lg">
                     <p className="text-blue-800 text-sm">
-                      🎉 You earned 10 points for exploring a new location!
+                      🎉 You earned 10 points for exploring AFIT campus!
                     </p>
                   </div>
                 </CardContent>
               </Card>
             )}
+
+            {/* AFIT Buildings Quick Access */}
+            <Card>
+              <CardHeader>
+                <CardTitle>AFIT Buildings Quick Access</CardTitle>
+                <CardDescription>Navigate directly to major campus buildings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {afitBuildings.slice(0, 6).map((building) => (
+                    <Button
+                      key={building.id}
+                      variant="outline"
+                      className="h-16 flex flex-col items-center justify-center space-y-1 relative"
+                      onClick={() => handleLocationSelect(building)}
+                    >
+                      <span className="text-lg">{building.type === 'residential' ? '🏠' : 
+                        building.type === 'academic' ? '🏛️' : 
+                        building.type === 'recreational' ? '🏃‍♂️' : '🏢'}</span>
+                      <span className="text-xs text-center">{building.name}</span>
+                      {building.events && building.events.length > 0 && (
+                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="indoor">
