@@ -1,16 +1,22 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, AlertTriangle, Award, Users, Shield } from 'lucide-react';
+import { Search, MapPin, AlertTriangle, Award, Users, Shield, Building, Route } from 'lucide-react';
 import CampusMap from '../components/CampusMap';
 import SearchBar from '../components/SearchBar';
 import SafetyAlerts from '../components/SafetyAlerts';
 import IncidentReport from '../components/IncidentReport';
 import UserProfile from '../components/UserProfile';
+import AdminPanel from '../components/AdminPanel';
+import IndoorNavigation from '../components/IndoorNavigation';
+import MultiModalRouting from '../components/MultiModalRouting';
+import Auth from '../components/Auth';
+import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
+import { Button } from '../components/ui/button';
 
 const Index = () => {
+  const { user, logout, loading } = useAuth();
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [userPoints, setUserPoints] = useState(0);
   const [activeTab, setActiveTab] = useState('map');
   const [userLocation, setUserLocation] = useState(null);
   const { alerts, incidents, updateUserPoints } = useFirebase();
@@ -36,14 +42,40 @@ const Index = () => {
 
   const handleLocationSelect = (location) => {
     setSelectedLocation(location);
-    setUserPoints(prev => prev + 10);
-    updateUserPoints(10);
+    if (user?.role !== 'admin') {
+      updateUserPoints(10);
+    }
   };
 
   const handleIncidentReport = (report) => {
-    setUserPoints(prev => prev + 20);
-    updateUserPoints(20);
+    if (user?.role !== 'admin') {
+      updateUserPoints(20);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Auth />;
+  }
+
+  const tabConfig = [
+    { id: 'map', label: 'Map', icon: MapPin },
+    { id: 'indoor', label: 'Indoor Nav', icon: Building },
+    { id: 'routing', label: 'Routing', icon: Route },
+    { id: 'alerts', label: 'Safety', icon: Shield },
+    { id: 'report', label: 'Report', icon: AlertTriangle },
+    ...(user.role === 'admin' 
+      ? [{ id: 'admin', label: 'Admin', icon: Users }] 
+      : [{ id: 'community', label: 'Community', icon: Users }]
+    )
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -62,11 +94,19 @@ const Index = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 bg-yellow-100 px-3 py-1 rounded-full">
-                <Award className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm font-medium text-yellow-800">{userPoints} points</span>
+              <div className="text-sm">
+                <span className="font-medium">{user.email}</span>
+                <span className="ml-2 text-gray-500">({user.role})</span>
               </div>
-              <UserProfile points={userPoints} />
+              {user.role !== 'admin' && (
+                <div className="flex items-center space-x-2 bg-yellow-100 px-3 py-1 rounded-full">
+                  <Award className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm font-medium text-yellow-800">{user.points || 0} points</span>
+                </div>
+              )}
+              <Button onClick={logout} variant="outline" size="sm">
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -75,17 +115,12 @@ const Index = () => {
       {/* Navigation Tabs */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
-            {[
-              { id: 'map', label: 'Map', icon: MapPin },
-              { id: 'alerts', label: 'Safety', icon: Shield },
-              { id: 'report', label: 'Report', icon: AlertTriangle },
-              { id: 'community', label: 'Community', icon: Users }
-            ].map(({ id, label, icon: Icon }) => (
+          <nav className="flex space-x-8 overflow-x-auto">
+            {tabConfig.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                   activeTab === id
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -120,19 +155,23 @@ const Index = () => {
                 <p className="text-gray-600">
                   Estimated walking time: {selectedLocation.walkTime || '5-10 minutes'}
                 </p>
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                  <p className="text-blue-800 text-sm">
-                    🎉 You earned 10 points for exploring a new location!
-                  </p>
-                </div>
+                {user.role !== 'admin' && (
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <p className="text-blue-800 text-sm">
+                      🎉 You earned 10 points for exploring a new location!
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {activeTab === 'alerts' && (
-          <SafetyAlerts alerts={alerts} />
-        )}
+        {activeTab === 'indoor' && <IndoorNavigation />}
+
+        {activeTab === 'routing' && <MultiModalRouting />}
+
+        {activeTab === 'alerts' && <SafetyAlerts alerts={alerts} />}
 
         {activeTab === 'report' && (
           <IncidentReport 
@@ -141,14 +180,17 @@ const Index = () => {
           />
         )}
 
-        {activeTab === 'community' && (
+        {activeTab === 'admin' && user.role === 'admin' && <AdminPanel />}
+
+        {activeTab === 'community' && user.role !== 'admin' && (
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Community Hub</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-6 rounded-lg text-white">
                 <Award className="h-8 w-8 mb-3" />
                 <h3 className="text-lg font-semibold mb-2">Your Achievements</h3>
-                <p className="text-purple-100">Explorer Level 1</p>
+                <p className="text-purple-100">Points: {user.points || 0}</p>
+                <p className="text-purple-100">Badges: {user.badges?.length || 0}</p>
               </div>
               <div className="bg-gradient-to-br from-green-500 to-teal-500 p-6 rounded-lg text-white">
                 <Users className="h-8 w-8 mb-3" />
