@@ -1,12 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Campus Navigator - Smart Campus Navigation</title>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyADrTuJRmbHBeQFXvU2BG-l6LAkG2yMr7g&callback=initMap" async defer></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -627,16 +625,18 @@
     let destination = null;
     let selectedReportType = '';
     let currentTab = 'map';
+    let directionsService = null;
+    let directionsRenderer = null;
 
-    // Campus locations
+    // Campus locations (Google Maps coordinates)
     const locations = {
-      'Main Library': [-122.084, 37.422],
-      'Science Building': [-122.085, 37.423],
-      'Student Center': [-122.083, 37.421],
-      'Cafeteria': [-122.082, 37.420],
-      'Parking Lot A': [-122.086, 37.424],
-      'Gym': [-122.081, 37.419],
-      'Admin Building': [-122.087, 37.425]
+      'Main Library': { lat: 37.422, lng: -122.084 },
+      'Science Building': { lat: 37.423, lng: -122.085 },
+      'Student Center': { lat: 37.421, lng: -122.083 },
+      'Cafeteria': { lat: 37.420, lng: -122.082 },
+      'Parking Lot A': { lat: 37.424, lng: -122.086 },
+      'Gym': { lat: 37.419, lng: -122.081 },
+      'Admin Building': { lat: 37.425, lng: -122.087 }
     };
 
     // Building data for indoor navigation
@@ -678,6 +678,150 @@
         ]
       }
     };
+
+    // Initialize Google Maps
+    function initMap() {
+      // Default center (campus center)
+      const campusCenter = { lat: 37.422, lng: -122.084 };
+      
+      map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 15,
+        center: campusCenter,
+        mapTypeId: 'roadmap'
+      });
+
+      // Initialize directions service and renderer
+      directionsService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer();
+      directionsRenderer.setMap(map);
+
+      // Add markers for campus locations
+      Object.entries(locations).forEach(([name, coords]) => {
+        const marker = new google.maps.Marker({
+          position: coords,
+          map: map,
+          title: name,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#3B82F6">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            `),
+            scaledSize: new google.maps.Size(30, 30),
+            anchor: new google.maps.Point(15, 30)
+          }
+        });
+
+        marker.addListener('click', () => {
+          handleLocationSelect(name, coords);
+        });
+      });
+
+      // Add safety alert markers
+      addSafetyMarkers();
+    }
+
+    // Add safety markers to map
+    function addSafetyMarkers() {
+      // Sample safety alert locations
+      const safetyAlerts = [
+        { lat: 37.4225, lng: -122.0845, type: 'alert', message: 'Construction zone' },
+        { lat: 37.4215, lng: -122.0835, type: 'incident', message: 'Reported incident' }
+      ];
+
+      safetyAlerts.forEach(alert => {
+        const marker = new google.maps.Marker({
+          position: { lat: alert.lat, lng: alert.lng },
+          map: map,
+          title: alert.message,
+          icon: {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${alert.type === 'alert' ? '#F59E0B' : '#DC2626'}">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              </svg>
+            `),
+            scaledSize: new google.maps.Size(24, 24),
+            anchor: new google.maps.Point(12, 12)
+          }
+        });
+      });
+    }
+
+    // Handle location selection
+    function handleLocationSelect(name, coords) {
+      destination = coords;
+      updatePoints(10);
+      
+      // Center map on selected location
+      map.setCenter(coords);
+      map.setZoom(17);
+      
+      // Show directions
+      document.getElementById('directionsContainer').classList.remove('hidden');
+      document.getElementById('directionsContent').innerHTML = `
+        <p><strong>Destination:</strong> ${name}</p>
+        <p><strong>Directions:</strong> Click "Get Directions" to see route</p>
+        <button onclick="getDirections()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Get Directions
+        </button>
+        <div class="mt-2 p-2 bg-blue-50 rounded">
+          <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
+        </div>
+      `;
+    }
+
+    // Get directions using Google Maps Directions API
+    function getDirections() {
+      if (!destination) return;
+
+      // Get user's current location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const origin = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+
+          const request = {
+            origin: origin,
+            destination: destination,
+            travelMode: google.maps.TravelMode.WALKING
+          };
+
+          directionsService.route(request, (result, status) => {
+            if (status === 'OK') {
+              directionsRenderer.setDirections(result);
+              
+              const route = result.routes[0];
+              const leg = route.legs[0];
+              
+              document.getElementById('directionsContent').innerHTML = `
+                <p><strong>Walking Directions:</strong></p>
+                <p>Distance: ${leg.distance.text}</p>
+                <p>Duration: ${leg.duration.text}</p>
+                <div class="mt-4 space-y-2">
+                  ${leg.steps.map((step, index) => `
+                    <div class="flex items-start space-x-2">
+                      <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${index + 1}</span>
+                      <p class="text-sm">${step.instructions.replace(/<[^>]*>/g, '')}</p>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="mt-2 p-2 bg-blue-50 rounded">
+                  <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
+                </div>
+              `;
+            } else {
+              alert('Could not get directions: ' + status);
+            }
+          });
+        }, (error) => {
+          alert('Could not get your location: ' + error.message);
+        });
+      } else {
+        alert('Geolocation is not supported by this browser.');
+      }
+    }
 
     // Initialize fade-in animations
     document.addEventListener('DOMContentLoaded', function() {
@@ -815,7 +959,9 @@
       }
       
       // Initialize map
-      initializeMap();
+      if (typeof google !== 'undefined' && google.maps) {
+        initMap();
+      }
       
       // Load user data
       points = currentUser.points || 0;
@@ -832,7 +978,8 @@
       
       // Reset app state
       if (map) {
-        map.remove();
+        // Google Maps does not have a remove method, but we can clear markers and directions
+        directionsRenderer.setMap(null);
         map = null;
       }
       alerts = [];
@@ -870,42 +1017,12 @@
     }
 
     // Map functions
-    function initializeMap() {
-      if (map) return;
-      
-      mapboxgl.accessToken = 'YOUR_MAPBOX_ACCESS_TOKEN'; // Replace with your token
-      map = new mapboxgl.Map({
-        container: 'map',
-        style: 'mapbox://styles/mapbox/streets-v11',
-        center: [-122.084, 37.422],
-        zoom: 15
-      });
-
-      map.addControl(new mapboxgl.NavigationControl());
-    }
-
     function handleSearch() {
       const query = document.getElementById('searchInput').value;
-      const coords = locations[query];
+      const location = locations[query];
       
-      if (coords) {
-        destination = coords;
-        updatePoints(10);
-        
-        if (map) {
-          map.flyTo({ center: coords });
-          new mapboxgl.Marker().setLngLat(coords).addTo(map);
-        }
-        
-        // Show directions
-        document.getElementById('directionsContainer').classList.remove('hidden');
-        document.getElementById('directionsContent').innerHTML = `
-          <p><strong>Destination:</strong> ${query}</p>
-          <p><strong>Directions:</strong> Walk straight, then turn left (simplified)</p>
-          <div class="mt-2 p-2 bg-blue-50 rounded">
-            <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
-          </div>
-        `;
+      if (location) {
+        handleLocationSelect(query, location);
       } else {
         alert('Location not found!');
       }
