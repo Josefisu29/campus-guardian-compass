@@ -8,6 +8,10 @@
   <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
   <style>
     .hero-pattern {
       background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233B82F6' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
@@ -188,7 +192,6 @@
             <option value="">Select your role</option>
             <option value="student">Student</option>
             <option value="staff">Staff</option>
-            <option value="admin">Administrator</option>
           </select>
         </div>
         
@@ -231,66 +234,389 @@
       </div>
     </header>
 
-    <!-- Search -->
-    <div class="p-4 flex space-x-2">
-      <input
-        type="text"
-        id="searchInput"
-        placeholder="Search (e.g., Library, Science Building, Cafeteria)"
-        class="p-2 border rounded w-full"
-      />
-      <button onclick="handleSearch()" class="p-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-        Search
-      </button>
+    <!-- Navigation Tabs -->
+    <div class="bg-white border-b border-gray-200">
+      <div class="flex space-x-8 overflow-x-auto px-4">
+        <button onclick="showTab('map')" id="mapTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm whitespace-nowrap">
+          <span>🗺️</span>
+          <span>Map</span>
+        </button>
+        <button onclick="showTab('indoor')" id="indoorTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+          <span>🏢</span>
+          <span>Indoor Nav</span>
+        </button>
+        <button onclick="showTab('routing')" id="routingTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+          <span>🚶</span>
+          <span>Routing</span>
+        </button>
+        <button onclick="showTab('alerts')" id="alertsTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+          <span>🛡️</span>
+          <span>Safety</span>
+        </button>
+        <button onclick="showTab('report')" id="reportTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+          <span>⚠️</span>
+          <span>Report</span>
+        </button>
+        <button onclick="showTab('admin')" id="adminTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap hidden">
+          <span>👥</span>
+          <span>Admin</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Role-specific controls -->
-    <div id="studentControls" class="p-4 flex space-x-2 hidden">
-      <input
-        type="text"
-        id="reportInput"
-        placeholder="Report an issue (e.g., Broken sidewalk)"
-        class="p-2 border rounded w-full"
-      />
-      <button onclick="handleReport()" class="p-2 bg-green-500 text-white rounded hover:bg-green-600">
-        Report
-      </button>
-    </div>
+    <!-- Main Content -->
+    <main class="p-6">
+      <!-- Map Tab -->
+      <div id="mapContent" class="tab-content">
+        <!-- Search -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search for buildings, departments, or services..."
+              class="block w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+            />
+          </div>
+          <button onclick="handleSearch()" class="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
+            Search
+          </button>
+        </div>
 
-    <div id="adminControls" class="p-4 flex space-x-2 hidden">
-      <input
-        type="text"
-        id="alertInput"
-        placeholder="Create alert (e.g., Security issue)"
-        class="p-2 border rounded w-full"
-      />
-      <button onclick="handleCreateAlert()" class="p-2 bg-orange-500 text-white rounded hover:bg-orange-600">
-        Send Alert
-      </button>
-    </div>
+        <!-- Map -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div id="map" class="h-96"></div>
+        </div>
 
-    <!-- Map -->
-    <div id="map" class="h-96"></div>
+        <!-- Directions -->
+        <div id="directionsContainer" class="mt-6 bg-white p-6 rounded-xl shadow-lg hidden">
+          <div id="directionsContent"></div>
+        </div>
+      </div>
 
-    <!-- Alerts -->
-    <div id="alertsContainer" class="p-4 bg-yellow-100 hidden">
-      <p class="font-bold">Safety Alerts:</p>
-      <div id="alertsList"></div>
-    </div>
+      <!-- Indoor Navigation Tab -->
+      <div id="indoorContent" class="tab-content hidden">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">Indoor Navigation</h2>
+          
+          <!-- Building Selection -->
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Select Building:</label>
+            <select id="buildingSelect" class="w-full p-2 border rounded-md">
+              <option value="">Choose a building...</option>
+              <option value="science">Science Building</option>
+              <option value="library">Main Library</option>
+            </select>
+          </div>
 
-    <!-- Reports -->
-    <div id="reportsContainer" class="p-4 bg-red-100 hidden">
-      <p class="font-bold">Crowdsourced Reports:</p>
-      <div id="reportsList"></div>
-    </div>
+          <!-- Floor Selection -->
+          <div id="floorSelection" class="mb-4 hidden">
+            <label class="block text-sm font-medium mb-2">Select Floor:</label>
+            <select id="floorSelect" class="w-full p-2 border rounded-md">
+              <option value="">Choose a floor...</option>
+            </select>
+          </div>
 
-    <!-- Directions -->
-    <div id="directionsContainer" class="p-4 bg-gray-100 hidden">
-      <div id="directionsContent"></div>
-    </div>
+          <!-- Room Selection -->
+          <div id="roomSelection" class="mb-4 hidden">
+            <label class="block text-sm font-medium mb-2">Select Room:</label>
+            <select id="roomSelect" class="w-full p-2 border rounded-md">
+              <option value="">Choose a room...</option>
+            </select>
+          </div>
+
+          <!-- Floor Plan -->
+          <div id="floorPlan" class="mt-6 hidden">
+            <h4 class="font-medium mb-3">Floor Plan</h4>
+            <div id="floorPlanContainer" class="relative bg-gray-100 border rounded-lg p-4" style="height: 300px;">
+              <!-- Floor plan will be rendered here -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-Modal Routing Tab -->
+      <div id="routingContent" class="tab-content hidden">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">Multi-Modal Routing</h2>
+          
+          <!-- Location Selection -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium mb-2">From:</label>
+              <select id="fromLocation" class="w-full p-2 border rounded-md">
+                <option value="">Select starting location...</option>
+                <option value="Main Library">Main Library</option>
+                <option value="Science Building">Science Building</option>
+                <option value="Student Center">Student Center</option>
+                <option value="Cafeteria">Cafeteria</option>
+                <option value="Parking Lot A">Parking Lot A</option>
+                <option value="Gym">Gym</option>
+                <option value="Admin Building">Admin Building</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-medium mb-2">To:</label>
+              <select id="toLocation" class="w-full p-2 border rounded-md">
+                <option value="">Select destination...</option>
+                <option value="Main Library">Main Library</option>
+                <option value="Science Building">Science Building</option>
+                <option value="Student Center">Student Center</option>
+                <option value="Cafeteria">Cafeteria</option>
+                <option value="Parking Lot A">Parking Lot A</option>
+                <option value="Gym">Gym</option>
+                <option value="Admin Building">Admin Building</option>
+              </select>
+            </div>
+          </div>
+
+          <button onclick="generateRoutes()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 mb-6">
+            Find Routes
+          </button>
+
+          <!-- Route Options -->
+          <div id="routeOptions" class="hidden space-y-3">
+            <h4 class="font-medium">Route Options:</h4>
+            <div id="routesList"></div>
+          </div>
+
+          <!-- Live Traffic Information -->
+          <div id="trafficInfo" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
+            <h4 class="font-medium mb-2">Live Campus Traffic</h4>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span>Main Walkway:</span>
+                <span class="text-green-600">Light Traffic</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Parking Lot A:</span>
+                <span class="text-red-600">Heavy Traffic</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Shuttle Route 1:</span>
+                <span class="text-yellow-600">Moderate Delay</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safety Alerts Tab -->
+      <div id="alertsContent" class="tab-content hidden">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">Safety Center</h2>
+          
+          <!-- Active Alerts -->
+          <div class="mb-8">
+            <h3 class="text-lg font-semibold mb-4">Active Alerts</h3>
+            <div id="activeAlerts" class="space-y-4">
+              <!-- Alerts will be populated here -->
+            </div>
+          </div>
+
+          <!-- Safety Tips -->
+          <div class="bg-blue-50 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-blue-900 mb-4">Safety Tips</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex items-start space-x-3">
+                <div class="bg-blue-200 rounded-full p-2">
+                  <span>🛡️</span>
+                </div>
+                <div>
+                  <h4 class="font-medium text-blue-900">Stay Alert</h4>
+                  <p class="text-sm text-blue-700">Always be aware of your surroundings while walking on campus.</p>
+                </div>
+              </div>
+              <div class="flex items-start space-x-3">
+                <div class="bg-blue-200 rounded-full p-2">
+                  <span>⚠️</span>
+                </div>
+                <div>
+                  <h4 class="font-medium text-blue-900">Report Issues</h4>
+                  <p class="text-sm text-blue-700">Use the report feature to notify others of safety concerns.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Report Tab -->
+      <div id="reportContent" class="tab-content hidden">
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-6">Report an Issue</h2>
+          
+          <form id="reportForm" class="space-y-6">
+            <!-- Report Type -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-3">
+                What type of issue are you reporting?
+              </label>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <button type="button" onclick="selectReportType('safety')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
+                  <div class="text-2xl mb-2">⚠️</div>
+                  <div class="font-medium text-sm">Safety Hazard</div>
+                </button>
+                <button type="button" onclick="selectReportType('maintenance')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
+                  <div class="text-2xl mb-2">🔧</div>
+                  <div class="font-medium text-sm">Maintenance Issue</div>
+                </button>
+                <button type="button" onclick="selectReportType('security')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
+                  <div class="text-2xl mb-2">🚨</div>
+                  <div class="font-medium text-sm">Security Concern</div>
+                </button>
+                <button type="button" onclick="selectReportType('accessibility')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
+                  <div class="text-2xl mb-2">♿</div>
+                  <div class="font-medium text-sm">Accessibility Issue</div>
+                </button>
+                <button type="button" onclick="selectReportType('other')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
+                  <div class="text-2xl mb-2">📝</div>
+                  <div class="font-medium text-sm">Other</div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="reportDescription" class="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                id="reportDescription"
+                placeholder="Please provide details about the issue..."
+                rows="4"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              ></textarea>
+            </div>
+
+            <!-- Location -->
+            <div>
+              <label for="reportLocation" class="block text-sm font-medium text-gray-700 mb-2">
+                Specific Location
+              </label>
+              <input
+                id="reportLocation"
+                type="text"
+                placeholder="e.g., Near main library entrance, Building A Room 101..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p class="mt-1 text-sm text-gray-500">
+                Leave blank to use your current location
+              </p>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium">
+              Submit Report
+            </button>
+          </form>
+
+          <!-- Reward Info -->
+          <div class="mt-6 p-4 bg-green-50 rounded-lg">
+            <div class="flex items-center space-x-2">
+              <div class="bg-green-500 rounded-full p-1">
+                <span class="text-white text-xs">+20</span>
+              </div>
+              <span class="text-green-800 font-medium text-sm">
+                Earn 20 points for each verified report to help improve campus safety!
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab -->
+      <div id="adminContent" class="tab-content hidden">
+        <div class="space-y-6">
+          <!-- Register New User -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4">Register New User</h3>
+            <form id="adminRegisterForm" class="space-y-4">
+              <input
+                type="email"
+                id="adminUserEmail"
+                placeholder="Email"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="password"
+                id="adminUserPassword"
+                placeholder="Password"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+              <select id="adminUserRole" required class="w-full p-2 border rounded-md">
+                <option value="">Select Role</option>
+                <option value="student">Student</option>
+                <option value="staff">Staff</option>
+              </select>
+              <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                Register User
+              </button>
+            </form>
+          </div>
+
+          <!-- Create Alert -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4">Create Safety Alert</h3>
+            <form id="adminAlertForm" class="space-y-4">
+              <input
+                type="text"
+                id="adminAlertMessage"
+                placeholder="Alert message (e.g., Security issue near library)"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+              <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-md hover:bg-orange-700">
+                Send Alert
+              </button>
+            </form>
+          </div>
+
+          <!-- Registered Users -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4">Registered Users</h3>
+            <div id="usersList" class="space-y-2">
+              <!-- Users will be populated here -->
+            </div>
+          </div>
+
+          <!-- Moderate Reports -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4">Moderate Reports</h3>
+            <div id="reportsList" class="space-y-2">
+              <!-- Reports will be populated here -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
   <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "your-api-key",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "your-app-id"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
     // App state
     let currentUser = null;
     let map = null;
@@ -299,12 +625,58 @@
     let points = 0;
     let badges = [];
     let destination = null;
+    let selectedReportType = '';
+    let currentTab = 'map';
 
     // Campus locations
     const locations = {
-      'Library': [-122.084, 37.422],
+      'Main Library': [-122.084, 37.422],
       'Science Building': [-122.085, 37.423],
-      'Cafeteria': [-122.083, 37.421]
+      'Student Center': [-122.083, 37.421],
+      'Cafeteria': [-122.082, 37.420],
+      'Parking Lot A': [-122.086, 37.424],
+      'Gym': [-122.081, 37.419],
+      'Admin Building': [-122.087, 37.425]
+    };
+
+    // Building data for indoor navigation
+    const buildings = {
+      'science': {
+        name: 'Science Building',
+        floors: [
+          {
+            id: 'floor1',
+            name: 'Floor 1',
+            rooms: [
+              { id: 'room101', name: 'Room 101', type: 'classroom', coordinates: { x: 50, y: 100 } },
+              { id: 'room102', name: 'Room 102', type: 'lab', coordinates: { x: 150, y: 100 } },
+              { id: 'restroom1', name: 'Restroom', type: 'restroom', coordinates: { x: 250, y: 50 } }
+            ]
+          },
+          {
+            id: 'floor2',
+            name: 'Floor 2',
+            rooms: [
+              { id: 'room201', name: 'Room 201', type: 'classroom', coordinates: { x: 50, y: 100 } },
+              { id: 'room202', name: 'Professor Office', type: 'office', coordinates: { x: 150, y: 100 } }
+            ]
+          }
+        ]
+      },
+      'library': {
+        name: 'Main Library',
+        floors: [
+          {
+            id: 'floor1',
+            name: 'Ground Floor',
+            rooms: [
+              { id: 'entrance', name: 'Main Entrance', type: 'other', coordinates: { x: 100, y: 200 } },
+              { id: 'circulation', name: 'Circulation Desk', type: 'other', coordinates: { x: 100, y: 150 } },
+              { id: 'study1', name: 'Study Area 1', type: 'other', coordinates: { x: 200, y: 100 } }
+            ]
+          }
+        ]
+      }
     };
 
     // Initialize fade-in animations
@@ -320,7 +692,31 @@
       });
       
       fadeElements.forEach(el => observer.observe(el));
+
+      // Set up event listeners
+      setupEventListeners();
     });
+
+    // Setup event listeners
+    function setupEventListeners() {
+      // Login form
+      document.getElementById('loginForm').addEventListener('submit', handleLogin);
+      
+      // Signup form
+      document.getElementById('signupForm').addEventListener('submit', handleSignup);
+      
+      // Report form
+      document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
+      
+      // Admin forms
+      document.getElementById('adminRegisterForm').addEventListener('submit', handleAdminRegister);
+      document.getElementById('adminAlertForm').addEventListener('submit', handleAdminAlert);
+
+      // Indoor navigation
+      document.getElementById('buildingSelect').addEventListener('change', handleBuildingSelect);
+      document.getElementById('floorSelect').addEventListener('change', handleFloorSelect);
+      document.getElementById('roomSelect').addEventListener('change', handleRoomSelect);
+    }
 
     // Modal functions
     function showLogin() {
@@ -343,46 +739,64 @@
     }
 
     // Authentication functions
-    document.getElementById('loginForm').addEventListener('submit', function(e) {
+    async function handleLogin(e) {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
       
-      // Simulate login (in real app, validate against backend)
-      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
-      const user = users.find(u => u.email === email && u.password === password);
-      
-      if (user) {
-        currentUser = user;
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        showApp();
-      } else {
-        alert('Invalid credentials');
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+      } catch (error) {
+        alert('Login failed: ' + error.message);
       }
-    });
+    }
 
-    document.getElementById('signupForm').addEventListener('submit', function(e) {
+    async function handleSignup(e) {
       e.preventDefault();
       const name = document.getElementById('signupName').value;
       const email = document.getElementById('signupEmail').value;
       const password = document.getElementById('signupPassword').value;
       const role = document.getElementById('signupRole').value;
       
-      // Save user (in real app, send to backend)
-      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
-      
-      if (users.find(u => u.email === email)) {
-        alert('Email already exists');
-        return;
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        // Save user data to Firestore
+        await db.collection('users').doc(user.uid).set({
+          name: name,
+          email: email,
+          role: role,
+          points: 0,
+          badges: [],
+          createdAt: new Date().toISOString()
+        });
+        
+        alert('Account created successfully!');
+      } catch (error) {
+        alert('Signup failed: ' + error.message);
       }
-      
-      const newUser = { name, email, password, role, points: 0, badges: [] };
-      users.push(newUser);
-      localStorage.setItem('campusUsers', JSON.stringify(users));
-      
-      currentUser = newUser;
-      localStorage.setItem('currentUser', JSON.stringify(newUser));
-      showApp();
+    }
+
+    // Auth state observer
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const userDoc = await db.collection('users').doc(user.uid).get();
+          if (userDoc.exists) {
+            currentUser = {
+              uid: user.uid,
+              ...userDoc.data()
+            };
+            showApp();
+          }
+        } catch (error) {
+          console.error('Error getting user data:', error);
+        }
+      } else {
+        currentUser = null;
+        showLanding();
+      }
     });
 
     // App functions
@@ -395,11 +809,9 @@
       document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name} (${currentUser.role})`;
       document.getElementById('pointsDisplay').textContent = `${currentUser.points || 0} points`;
       
-      // Show role-specific controls
+      // Show admin tab if user is admin
       if (currentUser.role === 'admin') {
-        document.getElementById('adminControls').classList.remove('hidden');
-      } else {
-        document.getElementById('studentControls').classList.remove('hidden');
+        document.getElementById('adminTab').classList.remove('hidden');
       }
       
       // Initialize map
@@ -408,11 +820,13 @@
       // Load user data
       points = currentUser.points || 0;
       badges = currentUser.badges || [];
+      
+      // Load alerts and reports
+      loadAlerts();
+      loadReports();
     }
 
-    function logout() {
-      localStorage.removeItem('currentUser');
-      currentUser = null;
+    function showLanding() {
       document.getElementById('campusApp').classList.add('hidden');
       document.getElementById('landingPage').classList.remove('hidden');
       
@@ -427,6 +841,35 @@
       badges = [];
     }
 
+    function logout() {
+      auth.signOut();
+    }
+
+    // Tab navigation
+    function showTab(tabName) {
+      // Hide all tab content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+      });
+      
+      // Remove active class from all tabs
+      document.querySelectorAll('[id$="Tab"]').forEach(tab => {
+        tab.classList.remove('border-blue-500', 'text-blue-600');
+        tab.classList.add('border-transparent', 'text-gray-500');
+      });
+      
+      // Show selected tab content
+      document.getElementById(tabName + 'Content').classList.remove('hidden');
+      
+      // Add active class to selected tab
+      const activeTab = document.getElementById(tabName + 'Tab');
+      activeTab.classList.add('border-blue-500', 'text-blue-600');
+      activeTab.classList.remove('border-transparent', 'text-gray-500');
+      
+      currentTab = tabName;
+    }
+
+    // Map functions
     function initializeMap() {
       if (map) return;
       
@@ -439,18 +882,6 @@
       });
 
       map.addControl(new mapboxgl.NavigationControl());
-
-      // Simulate safety alert after 5 seconds
-      setTimeout(() => {
-        const alert = {
-          message: 'Security alert near Cafeteria',
-          coords: [-122.083, 37.421],
-          time: new Date().toLocaleTimeString()
-        };
-        alerts.push(alert);
-        updateAlertsDisplay();
-        new mapboxgl.Marker({ color: 'orange' }).setLngLat(alert.coords).addTo(map);
-      }, 5000);
     }
 
     function handleSearch() {
@@ -459,8 +890,7 @@
       
       if (coords) {
         destination = coords;
-        points += 10;
-        updatePoints();
+        updatePoints(10);
         
         if (map) {
           map.flyTo({ center: coords });
@@ -481,112 +911,473 @@
       }
     }
 
-    function handleReport() {
-      const issue = document.getElementById('reportInput').value;
-      if (!issue) return;
+    // Indoor navigation functions
+    function handleBuildingSelect() {
+      const buildingId = document.getElementById('buildingSelect').value;
+      const floorSelection = document.getElementById('floorSelection');
+      const floorSelect = document.getElementById('floorSelect');
+      
+      if (buildingId && buildings[buildingId]) {
+        const building = buildings[buildingId];
+        floorSelect.innerHTML = '<option value="">Choose a floor...</option>';
+        
+        building.floors.forEach(floor => {
+          const option = document.createElement('option');
+          option.value = floor.id;
+          option.textContent = floor.name;
+          floorSelect.appendChild(option);
+        });
+        
+        floorSelection.classList.remove('hidden');
+      } else {
+        floorSelection.classList.add('hidden');
+        document.getElementById('roomSelection').classList.add('hidden');
+        document.getElementById('floorPlan').classList.add('hidden');
+      }
+    }
+
+    function handleFloorSelect() {
+      const buildingId = document.getElementById('buildingSelect').value;
+      const floorId = document.getElementById('floorSelect').value;
+      const roomSelection = document.getElementById('roomSelection');
+      const roomSelect = document.getElementById('roomSelect');
+      
+      if (buildingId && floorId && buildings[buildingId]) {
+        const floor = buildings[buildingId].floors.find(f => f.id === floorId);
+        if (floor) {
+          roomSelect.innerHTML = '<option value="">Choose a room...</option>';
+          
+          floor.rooms.forEach(room => {
+            const option = document.createElement('option');
+            option.value = room.id;
+            option.textContent = `${getRoomIcon(room.type)} ${room.name}`;
+            roomSelect.appendChild(option);
+          });
+          
+          roomSelection.classList.remove('hidden');
+          renderFloorPlan(floor);
+        }
+      } else {
+        roomSelection.classList.add('hidden');
+        document.getElementById('floorPlan').classList.add('hidden');
+      }
+    }
+
+    function handleRoomSelect() {
+      const roomId = document.getElementById('roomSelect').value;
+      // Highlight selected room on floor plan
+      document.querySelectorAll('.room-marker').forEach(marker => {
+        marker.classList.remove('bg-blue-500', 'text-white', 'border-blue-600');
+        marker.classList.add('bg-white', 'border-gray-300');
+      });
+      
+      if (roomId) {
+        const roomMarker = document.querySelector(`[data-room-id="${roomId}"]`);
+        if (roomMarker) {
+          roomMarker.classList.add('bg-blue-500', 'text-white', 'border-blue-600');
+          roomMarker.classList.remove('bg-white', 'border-gray-300');
+        }
+      }
+    }
+
+    function getRoomIcon(type) {
+      const icons = {
+        classroom: '🏫',
+        office: '🏢',
+        restroom: '🚻',
+        lab: '🔬',
+        other: '📍'
+      };
+      return icons[type] || '📍';
+    }
+
+    function renderFloorPlan(floor) {
+      const container = document.getElementById('floorPlanContainer');
+      container.innerHTML = '';
+      
+      floor.rooms.forEach(room => {
+        const roomDiv = document.createElement('div');
+        roomDiv.className = 'room-marker absolute w-16 h-12 border-2 rounded flex items-center justify-center text-xs font-medium cursor-pointer transition-all bg-white border-gray-300 hover:border-blue-400';
+        roomDiv.style.left = room.coordinates.x + 'px';
+        roomDiv.style.top = room.coordinates.y + 'px';
+        roomDiv.setAttribute('data-room-id', room.id);
+        roomDiv.title = room.name;
+        roomDiv.innerHTML = `<span>${getRoomIcon(room.type)}</span>`;
+        roomDiv.onclick = () => {
+          document.getElementById('roomSelect').value = room.id;
+          handleRoomSelect();
+        };
+        container.appendChild(roomDiv);
+      });
+      
+      document.getElementById('floorPlan').classList.remove('hidden');
+    }
+
+    // Multi-modal routing functions
+    function generateRoutes() {
+      const from = document.getElementById('fromLocation').value;
+      const to = document.getElementById('toLocation').value;
+      
+      if (!from || !to) {
+        alert('Please select both from and to locations');
+        return;
+      }
+      
+      const routes = [
+        {
+          mode: 'walking',
+          duration: '8 min',
+          distance: '0.6 miles',
+          crowdLevel: 'low',
+          icon: '🚶'
+        },
+        {
+          mode: 'biking',
+          duration: '3 min',
+          distance: '0.6 miles',
+          crowdLevel: 'low',
+          icon: '🚴'
+        },
+        {
+          mode: 'driving',
+          duration: '5 min',
+          distance: '0.8 miles',
+          cost: 'Parking: $2/hr',
+          crowdLevel: 'medium',
+          icon: '🚗'
+        },
+        {
+          mode: 'shuttle',
+          duration: '12 min',
+          distance: '1.2 miles',
+          cost: 'Free',
+          crowdLevel: 'high',
+          icon: '🚌'
+        }
+      ];
+      
+      const routesList = document.getElementById('routesList');
+      routesList.innerHTML = '';
+      
+      routes.forEach((route, index) => {
+        const routeDiv = document.createElement('div');
+        routeDiv.className = 'border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300';
+        routeDiv.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <span class="text-2xl">${route.icon}</span>
+              <div>
+                <p class="font-medium capitalize">${route.mode}</p>
+                <div class="flex items-center space-x-2 text-sm text-gray-600">
+                  <span>⏱️ ${route.duration}</span>
+                  <span>📍 ${route.distance}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-right">
+              ${route.cost ? `<p class="text-sm text-gray-600">${route.cost}</p>` : ''}
+              <p class="text-sm font-medium ${getCrowdColor(route.crowdLevel)}">
+                ${route.crowdLevel} traffic
+              </p>
+            </div>
+          </div>
+        `;
+        routesList.appendChild(routeDiv);
+      });
+      
+      document.getElementById('routeOptions').classList.remove('hidden');
+      document.getElementById('trafficInfo').classList.remove('hidden');
+    }
+
+    function getCrowdColor(level) {
+      const colors = {
+        low: 'text-green-600',
+        medium: 'text-yellow-600',
+        high: 'text-red-600'
+      };
+      return colors[level] || 'text-gray-600';
+    }
+
+    // Report functions
+    function selectReportType(type) {
+      selectedReportType = type;
+      
+      // Update button styles
+      document.querySelectorAll('.report-type-btn').forEach(btn => {
+        btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-900');
+        btn.classList.add('border-gray-200');
+      });
+      
+      event.target.closest('.report-type-btn').classList.add('border-blue-500', 'bg-blue-50', 'text-blue-900');
+      event.target.closest('.report-type-btn').classList.remove('border-gray-200');
+    }
+
+    async function handleReportSubmit(e) {
+      e.preventDefault();
+      
+      if (!selectedReportType) {
+        alert('Please select a report type');
+        return;
+      }
+      
+      const description = document.getElementById('reportDescription').value;
+      const location = document.getElementById('reportLocation').value;
       
       const report = {
-        issue,
-        coords: map ? map.getCenter().toArray() : [-122.084, 37.422],
-        time: new Date().toLocaleTimeString(),
+        type: selectedReportType,
+        description: description,
+        location: location || 'Current Location',
+        timestamp: new Date().toISOString(),
         status: 'pending',
-        reporter: currentUser.name
+        reporterId: currentUser.uid,
+        reporterName: currentUser.name
       };
       
-      reports.push(report);
-      document.getElementById('reportInput').value = '';
+      try {
+        await db.collection('reports').add(report);
+        
+        // Award points
+        if (currentUser.role !== 'admin') {
+          updatePoints(20);
+        }
+        
+        // Reset form
+        document.getElementById('reportForm').reset();
+        selectedReportType = '';
+        document.querySelectorAll('.report-type-btn').forEach(btn => {
+          btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-900');
+          btn.classList.add('border-gray-200');
+        });
+        
+        alert('Thank you! Your report has been submitted and you earned 20 points!');
+        loadReports();
+      } catch (error) {
+        alert('Error submitting report: ' + error.message);
+      }
+    }
+
+    // Admin functions
+    async function handleAdminRegister(e) {
+      e.preventDefault();
       
       if (currentUser.role !== 'admin') {
-        points += 20;
-        updatePoints();
+        alert('Access denied');
+        return;
       }
       
-      updateReportsDisplay();
+      const email = document.getElementById('adminUserEmail').value;
+      const password = document.getElementById('adminUserPassword').value;
+      const role = document.getElementById('adminUserRole').value;
       
-      if (map) {
-        new mapboxgl.Marker({ color: 'red' }).setLngLat(report.coords).addTo(map);
+      try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        
+        await db.collection('users').doc(user.uid).set({
+          email: email,
+          role: role,
+          points: 0,
+          badges: [],
+          createdAt: new Date().toISOString(),
+          registeredBy: currentUser.uid
+        });
+        
+        document.getElementById('adminRegisterForm').reset();
+        alert('User registered successfully!');
+        loadUsers();
+      } catch (error) {
+        alert('Registration failed: ' + error.message);
       }
     }
 
-    function handleCreateAlert() {
-      const message = document.getElementById('alertInput').value;
-      if (!message) return;
+    async function handleAdminAlert(e) {
+      e.preventDefault();
+      
+      if (currentUser.role !== 'admin') {
+        alert('Access denied');
+        return;
+      }
+      
+      const message = document.getElementById('adminAlertMessage').value;
       
       const alert = {
-        message,
-        coords: map ? map.getCenter().toArray() : [-122.084, 37.422],
-        time: new Date().toLocaleTimeString()
+        message: message,
+        timestamp: new Date().toISOString(),
+        createdBy: currentUser.uid,
+        active: true
       };
       
-      alerts.push(alert);
-      document.getElementById('alertInput').value = '';
-      updateAlertsDisplay();
+      try {
+        await db.collection('alerts').add(alert);
+        document.getElementById('adminAlertForm').reset();
+        alert('Alert sent successfully!');
+        loadAlerts();
+      } catch (error) {
+        alert('Error sending alert: ' + error.message);
+      }
+    }
+
+    // Data loading functions
+    async function loadAlerts() {
+      try {
+        const snapshot = await db.collection('alerts').where('active', '==', true).orderBy('timestamp', 'desc').get();
+        alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        displayAlerts();
+      } catch (error) {
+        console.error('Error loading alerts:', error);
+      }
+    }
+
+    async function loadReports() {
+      try {
+        const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
+        reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (currentUser.role === 'admin') {
+          displayReportsForAdmin();
+        }
+      } catch (error) {
+        console.error('Error loading reports:', error);
+      }
+    }
+
+    async function loadUsers() {
+      if (currentUser.role !== 'admin') return;
       
-      if (map) {
-        new mapboxgl.Marker({ color: 'orange' }).setLngLat(alert.coords).addTo(map);
+      try {
+        const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
+        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        displayUsers(users);
+      } catch (error) {
+        console.error('Error loading users:', error);
       }
     }
 
-    function updatePoints() {
-      currentUser.points = points;
-      document.getElementById('pointsDisplay').textContent = `${points} points`;
+    // Display functions
+    function displayAlerts() {
+      const activeAlerts = document.getElementById('activeAlerts');
+      if (!activeAlerts) return;
       
-      // Save to localStorage
-      localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      const users = JSON.parse(localStorage.getItem('campusUsers') || '[]');
-      const userIndex = users.findIndex(u => u.email === currentUser.email);
-      if (userIndex !== -1) {
-        users[userIndex] = currentUser;
-        localStorage.setItem('campusUsers', JSON.stringify(users));
+      if (alerts.length === 0) {
+        activeAlerts.innerHTML = '<p class="text-gray-500">No active alerts</p>';
+        return;
       }
+      
+      activeAlerts.innerHTML = alerts.map(alert => `
+        <div class="border-l-4 p-4 rounded-lg bg-yellow-100 border-yellow-500 text-yellow-800">
+          <div class="flex items-start space-x-3">
+            <span class="text-2xl">⚠️</span>
+            <div class="flex-1">
+              <h4 class="font-semibold">${alert.message}</h4>
+              <p class="text-sm opacity-75">${new Date(alert.timestamp).toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
     }
 
-    function updateAlertsDisplay() {
-      if (alerts.length > 0) {
-        document.getElementById('alertsContainer').classList.remove('hidden');
-        document.getElementById('alertsList').innerHTML = alerts.map(alert => 
-          `<p>${alert.message} at ${alert.time}</p>`
-        ).join('');
+    function displayReportsForAdmin() {
+      const reportsList = document.getElementById('reportsList');
+      if (!reportsList) return;
+      
+      if (reports.length === 0) {
+        reportsList.innerHTML = '<p class="text-gray-500">No reports</p>';
+        return;
       }
-    }
-
-    function updateReportsDisplay() {
-      if (reports.length > 0) {
-        document.getElementById('reportsContainer').classList.remove('hidden');
-        document.getElementById('reportsList').innerHTML = reports.map((report, index) => `
-          <div class="flex items-center space-x-2 mb-2">
-            <p>${report.issue} at ${report.time} (${report.status}) - by ${report.reporter}</p>
-            ${currentUser.role === 'admin' && report.status === 'pending' ? `
-              <button onclick="moderateReport(${index}, 'approve')" class="px-2 py-1 bg-green-500 text-white rounded text-xs">
+      
+      reportsList.innerHTML = reports.map(report => `
+        <div class="flex items-center justify-between p-3 border rounded">
+          <div>
+            <p class="font-medium">${report.description}</p>
+            <p class="text-sm text-gray-600">
+              ${report.type} • ${report.location} • ${new Date(report.timestamp).toLocaleDateString()}
+            </p>
+            <p class="text-xs text-gray-500">By: ${report.reporterName}</p>
+          </div>
+          <div class="flex space-x-2">
+            <span class="px-2 py-1 rounded text-xs ${
+              report.status === 'approved' ? 'bg-green-100 text-green-800' :
+              report.status === 'rejected' ? 'bg-red-100 text-red-800' :
+              'bg-yellow-100 text-yellow-800'
+            }">
+              ${report.status}
+            </span>
+            ${report.status === 'pending' ? `
+              <button onclick="moderateReport('${report.id}', 'approve')" class="px-2 py-1 bg-green-500 text-white rounded text-xs">
                 Approve
               </button>
-              <button onclick="moderateReport(${index}, 'reject')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">
+              <button onclick="moderateReport('${report.id}', 'reject')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">
                 Reject
               </button>
             ` : ''}
           </div>
-        `).join('');
+        </div>
+      `).join('');
+    }
+
+    function displayUsers(users) {
+      const usersList = document.getElementById('usersList');
+      if (!usersList) return;
+      
+      if (users.length === 0) {
+        usersList.innerHTML = '<p class="text-gray-500">No users</p>';
+        return;
+      }
+      
+      usersList.innerHTML = users.map(user => `
+        <div class="flex justify-between items-center p-3 border rounded">
+          <div>
+            <p class="font-medium">${user.email}</p>
+            <p class="text-sm text-gray-600">
+              ${user.role} • ${user.points || 0} points
+            </p>
+          </div>
+          <span class="text-xs text-gray-500">
+            ${new Date(user.createdAt).toLocaleDateString()}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    // Utility functions
+    async function updatePoints(newPoints) {
+      if (currentUser.role === 'admin') return;
+      
+      points += newPoints;
+      document.getElementById('pointsDisplay').textContent = `${points} points`;
+      
+      try {
+        await db.collection('users').doc(currentUser.uid).update({
+          points: points
+        });
+        currentUser.points = points;
+      } catch (error) {
+        console.error('Error updating points:', error);
       }
     }
 
-    function moderateReport(index, action) {
+    async function moderateReport(reportId, action) {
       if (currentUser.role !== 'admin') return;
       
-      if (action === 'approve') {
-        reports[index].status = 'approved';
-      } else {
-        reports.splice(index, 1);
+      try {
+        if (action === 'approve') {
+          await db.collection('reports').doc(reportId).update({
+            status: 'approved'
+          });
+        } else {
+          await db.collection('reports').doc(reportId).update({
+            status: 'rejected'
+          });
+        }
+        
+        loadReports();
+      } catch (error) {
+        alert('Error moderating report: ' + error.message);
       }
-      
-      updateReportsDisplay();
     }
 
     // Check if user is already logged in
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      currentUser = JSON.parse(savedUser);
-      showApp();
-    }
+    // This will be handled by the auth state observer
   </script>
 </body>
 </html>
