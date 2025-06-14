@@ -1,12 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Auth from '../components/Auth';
 import AdminDashboard from './AdminDashboard';
 import StudentDashboard from './StudentDashboard';
+import LandingPage from '../components/LandingPage';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
 
   if (loading) {
     return (
@@ -19,7 +21,11 @@ const Index = () => {
     );
   }
 
-  if (!user) {
+  if (!user && !showAuth) {
+    return <LandingPage onGetStarted={() => setShowAuth(true)} />;
+  }
+
+  if (!user && showAuth) {
     return <Auth />;
   }
 
