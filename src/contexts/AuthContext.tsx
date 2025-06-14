@@ -38,7 +38,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       console.log('Attempting login for:', email);
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('Login successful for:', userCredential.user.email);
       toast({
         title: "Success",
         description: "Successfully logged in!",
@@ -56,19 +57,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (email: string, password: string, name: string, role: string) => {
     try {
-      console.log('Attempting signup for:', email);
+      console.log('Attempting signup for:', email, 'with role:', role);
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
       
       // Create user document in Firestore
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
+      const userData = {
         email: firebaseUser.email,
         name: name,
         role: role,
         points: 0,
         badges: [],
         createdAt: new Date()
-      });
+      };
+      
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      console.log('User document created:', userData);
       
       toast({
         title: "Success",
@@ -87,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      console.log('Logging out user:', user?.email);
       await signOut(auth);
       toast({
         title: "Success",
@@ -108,36 +113,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (firebaseUser) {
         try {
+          console.log('Fetching user data from Firestore for:', firebaseUser.uid);
           // Get user data from Firestore
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          
           if (userDoc.exists()) {
             const userData = userDoc.data();
-            setUser({
+            console.log('User data retrieved:', userData);
+            
+            const user: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               role: userData.role || 'student',
               name: userData.name,
               points: userData.points || 0,
               badges: userData.badges || []
-            });
+            };
+            
+            console.log('Setting user state:', user);
+            setUser(user);
           } else {
+            console.log('User document does not exist, creating default user');
             // Default user data if document doesn't exist
-            setUser({
+            const defaultUser: User = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               role: 'student'
-            });
+            };
+            setUser(defaultUser);
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
           // Fallback to basic user data
-          setUser({
+          const fallbackUser: User = {
             uid: firebaseUser.uid,
             email: firebaseUser.email!,
             role: 'student'
-          });
+          };
+          console.log('Using fallback user data:', fallbackUser);
+          setUser(fallbackUser);
         }
       } else {
+        console.log('No authenticated user, setting user to null');
         setUser(null);
       }
       setLoading(false);

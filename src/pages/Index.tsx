@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Auth from '../components/Auth';
 import AdminDashboard from './AdminDashboard';
@@ -10,7 +10,17 @@ const Index = () => {
   const { user, loading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
 
+  // Debug logging to track authentication and routing
+  useEffect(() => {
+    console.log('Index component state:', {
+      user: user ? { email: user.email, role: user.role, uid: user.uid } : null,
+      loading,
+      showAuth
+    });
+  }, [user, loading, showAuth]);
+
   if (loading) {
+    console.log('Showing loading state...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="text-center">
@@ -21,20 +31,25 @@ const Index = () => {
     );
   }
 
-  if (!user && !showAuth) {
-    return <LandingPage onGetStarted={() => setShowAuth(true)} />;
-  }
-
-  if (!user && showAuth) {
+  // If no authenticated user
+  if (!user) {
+    console.log('No authenticated user, showAuth:', showAuth);
+    if (!showAuth) {
+      return <LandingPage onGetStarted={() => setShowAuth(true)} />;
+    }
     return <Auth />;
   }
 
-  // Route users to appropriate dashboard based on role
+  // Route authenticated users based on role
+  console.log('Routing authenticated user with role:', user.role);
+  
   if (user.role === 'admin') {
+    console.log('Redirecting to AdminDashboard');
     return <AdminDashboard />;
   }
 
-  // Both students and staff use the same dashboard with slight differences
+  // Both students and staff use the same dashboard
+  console.log('Redirecting to StudentDashboard for role:', user.role);
   return <StudentDashboard />;
 };
 
