@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,9 +43,13 @@ const GeofencingModule: React.FC<GeofencingModuleProps> = ({
   isAuthenticated = true
 }) => {
   const { toast } = useToast();
-  const [location, setLocation] = useState(defaultLocation);
+  // Set correct AFIT coordinates
+  const [location, setLocation] = useState({
+    latitude: 10.333674, // AFIT center coordinates
+    longitude: 7.749362
+  });
   const [mapConfig, setMapConfig] = useState({
-    zoom: 15,
+    zoom: 17, // Higher zoom for campus view
     tilt: 45,
     heading: 0,
     mapType: 'satellite'
@@ -69,22 +72,35 @@ const GeofencingModule: React.FC<GeofencingModuleProps> = ({
 
   const generateAIInsights = async () => {
     setIsAnalyzing(true);
-    // Simulate AI analysis of geofence areas
+    // Simulate AI analysis of geofence areas for AFIT campus
     setTimeout(() => {
       const insights = `
-📍 Location Analysis for ${location.latitude}, ${location.longitude}:
+📍 AFIT Campus Analysis (Kaduna, Nigeria) - ${location.latitude}, ${location.longitude}:
 
-🔵 500m Zone: Core campus facilities including main lecture halls, library, and student center. High foot traffic area with primary academic buildings.
+🔵 500m Zone: Core academic facilities including Ibrahim Alfa Hall, Main Admin Block, Lecture Theatre Complex, and AFIT Library. High cadet activity zone with primary teaching facilities.
 
-🟢 1000m Zone: Extended academic facilities, dormitories, and dining areas. Secondary buildings and recreational facilities are within this perimeter.
+🟢 1000m Zone: Extended campus including Air Engineering Block, Computing Block, Sports Stadium, and Officer Cadets Hostels. Secondary academic buildings and major recreational facilities.
 
-🟡 1500m Zone: Sports complex, parking areas, and auxiliary buildings. This zone includes outdoor recreational spaces and vehicle access points.
+🟡 1500m Zone: Campus periphery including Faculty of Sciences, Ground & Communications Engineering, Medical Clinic, and Fitness Centre. Specialized facilities and support services.
 
-🔴 2000m Zone: Campus boundary including security checkpoints, visitor parking, and emergency access routes. Perimeter monitoring recommended.
+🔴 2000m Zone: Full campus boundary including Guest House, NAF Hospital (adjacent), Chapel, and Main Cafeteria. Complete campus perimeter with all AFIT facilities.
 
-🏢 POI Density: High concentration of academic buildings in inner rings, residential facilities in middle rings, and support services in outer rings.
+🏢 Academic Distribution: 
+- Engineering blocks concentrated in northern sector
+- Residential facilities in central-eastern area  
+- Administrative and service buildings in southern sector
+- Sports and recreation in western zone
 
-⚠️ Security Recommendations: Focus monitoring on 500m-1000m transition zones where student activity is highest.
+⚠️ Security Recommendations: 
+- Primary monitoring on main campus roads and cadet movement routes
+- Focus on areas between residential and academic blocks during peak hours
+- Enhanced coverage around main gates and administrative areas
+
+🎯 Campus Navigation Insights:
+- Ibrahim Alfa Hall serves as central reference point
+- Main pedestrian routes connect academic blocks efficiently  
+- Vehicle access primarily through southern entrance
+- Emergency routes established to medical facilities
       `;
       setAiInsights(insights);
       setIsAnalyzing(false);
@@ -96,30 +112,33 @@ const GeofencingModule: React.FC<GeofencingModuleProps> = ({
     
     setIsAnalyzing(true);
     toast({
-      title: "Analyzing custom prompt",
-      description: "AI is processing your request...",
+      title: "Analyzing AFIT campus prompt",
+      description: "AI is processing your request for AFIT Kaduna...",
     });
 
-    // Simulate custom AI analysis
+    // Simulate custom AI analysis for AFIT
     setTimeout(() => {
       const customInsights = `
-🤖 Custom Analysis: "${customPrompt}"
+🤖 AFIT Campus Custom Analysis: "${customPrompt}"
 
-Based on your request, here are the tailored insights:
-- Adjusted geofence radii to optimize for your specific use case
-- Identified relevant POIs within your specified criteria
-- Generated contextual recommendations for your scenario
-- Provided actionable insights for campus navigation and safety
+Based on your request for AFIT Kaduna campus:
+- Adjusted geofence radii to optimize for AFIT's specific layout and size
+- Identified relevant campus facilities within your specified criteria
+- Generated contextual recommendations for AFIT navigation and operations
+- Provided actionable insights specific to Nigerian Air Force Academy environment
 
-${customPrompt.toLowerCase().includes('café') ? '☕ Coffee shop locations prioritized in analysis' : ''}
-${customPrompt.toLowerCase().includes('safety') ? '🛡️ Security considerations highlighted' : ''}
-${customPrompt.toLowerCase().includes('parking') ? '🚗 Parking availability analyzed' : ''}
+${customPrompt.toLowerCase().includes('cafeteria') || customPrompt.toLowerCase().includes('dining') ? '🍽️ Main Cafeteria/Dining Hall location prioritized in analysis' : ''}
+${customPrompt.toLowerCase().includes('safety') || customPrompt.toLowerCase().includes('security') ? '🛡️ Campus security considerations and emergency protocols highlighted' : ''}
+${customPrompt.toLowerCase().includes('parking') || customPrompt.toLowerCase().includes('vehicle') ? '🚗 Vehicle access routes and parking areas near Guest House analyzed' : ''}
+${customPrompt.toLowerCase().includes('hostel') || customPrompt.toLowerCase().includes('accommodation') ? '🏠 Cadet accommodation blocks and residential facilities mapped' : ''}
+${customPrompt.toLowerCase().includes('engineering') ? '⚙️ Engineering facilities (Air, Ground, Computing) distribution analyzed' : ''}
+${customPrompt.toLowerCase().includes('library') || customPrompt.toLowerCase().includes('study') ? '📚 AFIT Library and study areas accessibility reviewed' : ''}
       `;
       setAiInsights(customInsights);
       setIsAnalyzing(false);
       toast({
-        title: "Analysis complete",
-        description: "Custom insights generated successfully",
+        title: "AFIT analysis complete",
+        description: "Custom insights generated for AFIT campus",
       });
     }, 3000);
   };
@@ -249,57 +268,58 @@ export default CampusGeofenceMap;
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            3D Geofencing & Campus Mapping Module
+            AFIT 3D Geofencing & Campus Mapping Module
           </CardTitle>
           <CardDescription>
-            Advanced interactive mapping with AI-driven contextual insights and geofencing capabilities
+            Advanced interactive mapping for Nigerian Air Force Institute of Technology (AFIT) Kaduna
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="map">Interactive Map</TabsTrigger>
+          <TabsTrigger value="map">AFIT Campus Map</TabsTrigger>
           <TabsTrigger value="controls">Map Controls</TabsTrigger>
-          <TabsTrigger value="ai-insights">AI Insights</TabsTrigger>
+          <TabsTrigger value="ai-insights">Campus AI Insights</TabsTrigger>
           <TabsTrigger value="export">Export</TabsTrigger>
         </TabsList>
 
         <TabsContent value="map" className="space-y-6">
-          {/* Main Map Display */}
+          {/* Main Map Display for AFIT */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>Campus Map - {location.latitude}, {location.longitude}</span>
+                <span>AFIT Campus Map - Kaduna, Nigeria</span>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{mapConfig.mapType}</Badge>
                   <Badge variant="outline">{mapConfig.zoom}x zoom</Badge>
+                  <Badge variant="outline">📍 AFIT</Badge>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Simulated 3D Map View */}
+              {/* Simulated 3D Map View for AFIT Campus */}
               <div className="relative w-full h-96 bg-gradient-to-br from-green-100 via-blue-100 to-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                {/* Map Grid Pattern */}
+                {/* AFIT Campus Grid Pattern */}
                 <div className="absolute inset-0 opacity-20">
                   <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
                     <defs>
-                      <pattern id="grid-3d" width="40" height="40" patternUnits="userSpaceOnUse">
-                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#3B82F6" strokeWidth="1"/>
+                      <pattern id="afit-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                        <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#059669" strokeWidth="1"/>
                       </pattern>
                     </defs>
-                    <rect width="100%" height="100%" fill="url(#grid-3d)" />
+                    <rect width="100%" height="100%" fill="url(#afit-grid)" />
                   </svg>
                 </div>
 
-                {/* Geofence Rings Visualization */}
+                {/* Geofence Rings Visualization for AFIT */}
                 {geofenceRings.map((ring, index) => (
                   <div
                     key={index}
                     className="absolute rounded-full border-2 opacity-60"
                     style={{
-                      width: `${20 + index * 15}%`,
-                      height: `${20 + index * 15}%`,
+                      width: `${15 + index * 18}%`,
+                      height: `${15 + index * 18}%`,
                       borderColor: ring.color,
                       backgroundColor: `${ring.color}20`,
                       left: '50%',
@@ -316,14 +336,29 @@ export default CampusGeofenceMap;
                   </div>
                 ))}
 
-                {/* Campus Center Marker */}
+                {/* AFIT Campus Center Marker */}
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                  <div className="bg-red-500 rounded-full p-2 shadow-lg animate-pulse">
-                    <Target className="h-4 w-4 text-white" />
+                  <div className="bg-red-500 rounded-full p-3 shadow-lg animate-pulse">
+                    <Target className="h-6 w-6 text-white" />
                   </div>
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 bg-white px-2 py-1 rounded shadow text-xs font-medium whitespace-nowrap">
-                    Campus Center
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 bg-white px-3 py-2 rounded shadow text-xs font-medium whitespace-nowrap border">
+                    AFIT Campus Center
+                    <div className="text-gray-500">Ibrahim Alfa Hall Area</div>
                   </div>
+                </div>
+
+                {/* Sample AFIT Buildings */}
+                <div className="absolute top-1/3 left-1/3 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="bg-blue-500 rounded p-1 shadow text-white text-xs">🏛️</div>
+                  <div className="text-xs mt-1 text-center">Academic</div>
+                </div>
+                <div className="absolute top-2/3 right-1/3 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="bg-green-500 rounded p-1 shadow text-white text-xs">🏠</div>
+                  <div className="text-xs mt-1 text-center">Hostels</div>
+                </div>
+                <div className="absolute bottom-1/4 left-2/3 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="bg-orange-500 rounded p-1 shadow text-white text-xs">🏃‍♂️</div>
+                  <div className="text-xs mt-1 text-center">Stadium</div>
                 </div>
 
                 {/* Map Controls Overlay */}
@@ -342,12 +377,15 @@ export default CampusGeofenceMap;
                   </Button>
                 </div>
 
-                {/* 3D View Indicator */}
-                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 text-xs">
-                  <div className="flex items-center gap-2">
+                {/* AFIT 3D View Indicator */}
+                <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 text-xs">
+                  <div className="flex items-center gap-2 mb-1">
                     <Globe className="h-4 w-4" />
-                    <span>3D View: {mapConfig.tilt}° tilt, {mapConfig.heading}° heading</span>
+                    <span className="font-medium">AFIT 3D Campus View</span>
                   </div>
+                  <div>📐 {mapConfig.tilt}° tilt, {mapConfig.heading}° heading</div>
+                  <div>📍 Coordinates: {location.latitude}, {location.longitude}</div>
+                  <div>🎯 Zoom: {mapConfig.zoom}x (Campus Level)</div>
                 </div>
               </div>
             </CardContent>
@@ -375,15 +413,16 @@ export default CampusGeofenceMap;
         </TabsContent>
 
         <TabsContent value="controls" className="space-y-6">
-          {/* Location Input */}
+          {/* Location Configuration for AFIT */}
           <Card>
             <CardHeader>
-              <CardTitle>Location Configuration</CardTitle>
+              <CardTitle>AFIT Campus Location Configuration</CardTitle>
+              <CardDescription>Nigerian Air Force Institute of Technology, Kaduna</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="latitude">Latitude</Label>
+                  <Label htmlFor="latitude">Latitude (AFIT Center)</Label>
                   <Input
                     id="latitude"
                     type="number"
@@ -393,7 +432,7 @@ export default CampusGeofenceMap;
                   />
                 </div>
                 <div>
-                  <Label htmlFor="longitude">Longitude</Label>
+                  <Label htmlFor="longitude">Longitude (AFIT Center)</Label>
                   <Input
                     id="longitude"
                     type="number"
@@ -402,6 +441,11 @@ export default CampusGeofenceMap;
                     onChange={(e) => setLocation({...location, longitude: parseFloat(e.target.value)})}
                   />
                 </div>
+              </div>
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                📍 Current: AFIT Campus, Kaduna State, Nigeria<br/>
+                🏛️ Reference: Ibrahim Alfa Hall (Main Residential Area)<br/>
+                🗺️ Coverage: Full campus including all academic, residential, and service buildings
               </div>
             </CardContent>
           </Card>

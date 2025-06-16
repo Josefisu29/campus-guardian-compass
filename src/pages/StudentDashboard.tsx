@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MapPin, Calendar, Users, Shield, Bell, Navigation, LogOut, UserX, Search, Star, Settings, Bookmark } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,7 +48,7 @@ const StudentDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">AFIT Campus Navigator</h1>
-                <p className="text-gray-600">Your comprehensive campus companion</p>
+                <p className="text-gray-600">Nigerian Air Force Institute of Technology - Campus Guide</p>
               </div>
               <div className="flex items-center space-x-4">
                 {isAuthenticated ? (
@@ -115,8 +114,8 @@ const StudentDashboard = () => {
                 </h2>
                 <p className="text-blue-100">
                   {isAuthenticated 
-                    ? "Navigate your campus with ease and stay updated on events." 
-                    : "Explore our campus and discover amazing locations. Login for personalized features."}
+                    ? "Navigate the Nigerian Air Force Institute of Technology campus with ease and stay updated on events." 
+                    : "Explore AFIT Kaduna campus and discover amazing locations. Login for personalized features."}
                 </p>
               </CardContent>
             </Card>
@@ -193,16 +192,16 @@ const StudentDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Campus Map Preview */}
+            {/* Campus Map Preview with correct coordinates */}
             <Card>
               <CardHeader>
-                <CardTitle>Campus Overview</CardTitle>
-                <CardDescription>Interactive map with navigation features</CardDescription>
+                <CardTitle>AFIT Campus Overview</CardTitle>
+                <CardDescription>Interactive map of Nigerian Air Force Institute of Technology, Kaduna</CardDescription>
               </CardHeader>
               <CardContent>
                 <CampusMap 
                   selectedLocation={selectedLocation} 
-                  userLocation={{ lat: 10.333, lng: 7.750 }} 
+                  userLocation={{ lat: 10.333674, lng: 7.749362 }} // AFIT center coordinates
                   alerts={[]} 
                   incidents={[]} 
                 />
@@ -212,7 +211,7 @@ const StudentDashboard = () => {
 
           <TabsContent value="map">
             <GeofencingModule 
-              defaultLocation={{ latitude: 10.333, longitude: 7.750 }}
+              defaultLocation={{ latitude: 10.333674, longitude: 7.749362 }} // AFIT coordinates
               isAdmin={false}
               isAuthenticated={isAuthenticated}
             />
