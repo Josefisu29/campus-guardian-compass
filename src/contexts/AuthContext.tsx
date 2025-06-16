@@ -47,7 +47,7 @@ const validateRole = (role: string): role is 'admin' | 'student' | 'staff' => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false); // Set to false for testing
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   // TEST MODE: Set a test user directly
@@ -132,8 +132,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: firebaseUser.email,
         name: name,
         role: role as 'admin' | 'student' | 'staff',
-        points: role === 'student' ? 0 : undefined, // Only students get points
-        badges: role === 'student' ? [] : undefined, // Only students get badges
+        points: role === 'student' ? 0 : undefined,
+        badges: role === 'student' ? [] : undefined,
+        assignedBuildings: role === 'staff' ? [] : undefined,
+        preferences: {
+          notifications: true,
+          language: 'en',
+          accessibility: false,
+          bookmarks: []
+        },
         createdAt: new Date(),
         lastActive: new Date()
       };
@@ -159,8 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       console.log('Logging out user:', user?.email);
-      // In test mode, just clear the user
-      setUser(null);
+      await signOut(auth);
       toast({
         title: "Success",
         description: "Successfully logged out!",
@@ -175,8 +181,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Comment out Firebase auth listener for testing
-  /*
+  // Firebase auth listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       console.log('Auth state changed:', firebaseUser?.email);
@@ -206,7 +211,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: userData.role,
               name: userData.name,
               points: userData.points || 0,
-              badges: userData.badges || []
+              badges: userData.badges || [],
+              assignedBuildings: userData.assignedBuildings || [],
+              preferences: userData.preferences || {
+                notifications: true,
+                language: 'en',
+                accessibility: false,
+                bookmarks: []
+              }
             };
             
             console.log('Setting user state:', user);
@@ -220,6 +232,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: 'student' as const,
               points: 0,
               badges: [],
+              preferences: {
+                notifications: true,
+                language: 'en',
+                accessibility: false,
+                bookmarks: []
+              },
               createdAt: new Date(),
               lastActive: new Date()
             };
@@ -232,7 +250,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: 'student',
               name: defaultUserData.name,
               points: 0,
-              badges: []
+              badges: [],
+              preferences: defaultUserData.preferences
             };
             
             console.log('Created and set default user:', defaultUser);
@@ -247,7 +266,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             role: 'student',
             name: firebaseUser.displayName || 'User',
             points: 0,
-            badges: []
+            badges: [],
+            preferences: {
+              notifications: true,
+              language: 'en',
+              accessibility: false,
+              bookmarks: []
+            }
           };
           console.log('Using fallback user data:', fallbackUser);
           setUser(fallbackUser);
@@ -261,7 +286,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
-  */
 
   return (
     <AuthContext.Provider value={{ user, loading, login, signup, logout, setTestUser }}>
