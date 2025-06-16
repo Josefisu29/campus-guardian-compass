@@ -1,84 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, AlertTriangle, Award, Users, Navigation, Calendar } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { MapPin, Calendar, Users, Shield, AlertTriangle, Navigation, LogOut, UserX } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CampusMap from '../components/CampusMap';
-import SearchBar from '../components/SearchBar';
+import GeofencingModule from '../components/GeofencingModule';
 import SafetyAlerts from '../components/SafetyAlerts';
-import IncidentReport from '../components/IncidentReport';
-import IndoorNavigation from '../components/IndoorNavigation';
-import MultiModalRouting from '../components/MultiModalRouting';
-import EventNotificationSystem from '../components/EventNotificationSystem';
-import { useAuth } from '../contexts/AuthContext';
 import { useFirebase } from '../hooks/useFirebase';
-import { afitBuildings } from '../data/afitBuildings';
+import { useAuth } from '../contexts/AuthContext';
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
-  const { alerts, incidents, updateUserPoints } = useFirebase();
+  const { user, logout } = useAuth();
+  const { alerts, incidents } = useFirebase();
+  const [activeTab, setActiveTab] = useState('navigation');
   const [selectedLocation, setSelectedLocation] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
-  const [activeTab, setActiveTab] = useState('map');
 
-  // Get all events from AFIT buildings
-  const allEvents = afitBuildings.flatMap(building => building.events || []);
+  // Optional login - allow access without authentication but with limited features
+  const isAuthenticated = !!user;
+  const userRole = user?.role || 'guest';
 
-  // Get user's current location
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          });
-        },
-        (error) => {
-          console.log('Location access denied:', error);
-          // Default to campus center
-          setUserLocation({ lat: 37.422, lng: -122.084 });
-        }
-      );
-    }
-  }, []);
-
-  const handleLocationSelect = (location) => {
-    setSelectedLocation(location);
-    updateUserPoints(10);
+  const handleOptionalLogin = () => {
+    // This would redirect to auth page or show auth modal
+    window.location.href = '/';
   };
-
-  const handleIncidentReport = (report) => {
-    updateUserPoints(20);
-  };
-
-  const userRole = user?.role === 'student' ? 'Student' : 'Staff';
-  const userPoints = user?.points || 0;
-  const userBadges = user?.badges?.length || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Event Notification System */}
-      <EventNotificationSystem events={allEvents} />
-      
-      {/* Header */}
-      <div className="bg-white shadow-lg border-b">
+      <div className="border-b bg-white/80 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">AFIT Campus Navigator</h1>
-                <p className="text-gray-600">Welcome back, {user?.name || userRole}! 🇳🇬</p>
+                <h1 className="text-2xl font-bold text-gray-900">Campus Navigator</h1>
+                <p className="text-gray-600">Your campus companion for navigation and safety</p>
               </div>
               <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.email}</p>
-                  <p className="text-xs text-gray-500">{userRole} • AFIT</p>
-                </div>
-                <div className="flex items-center space-x-2 bg-yellow-100 px-3 py-2 rounded-full">
-                  <Award className="h-4 w-4 text-yellow-600" />
-                  <span className="text-sm font-medium text-yellow-800">{userPoints} points</span>
-                </div>
+                {isAuthenticated ? (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <div className={`h-3 w-3 rounded-full ${
+                        userRole === 'staff' ? 'bg-purple-500' : 'bg-blue-500'
+                      }`}></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {userRole === 'staff' ? 'Staff' : 'Student'}: {user.name}
+                      </span>
+                    </div>
+                    <Button onClick={logout} variant="outline" size="sm">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2 text-gray-500">
+                      <UserX className="h-4 w-4" />
+                      <span className="text-sm">Guest Mode</span>
+                    </div>
+                    <Button onClick={handleOptionalLogin} size="sm">
+                      Login for Full Access
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -87,221 +70,154 @@ const StudentDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="map">Campus Map</TabsTrigger>
-            <TabsTrigger value="indoor">Indoor Nav</TabsTrigger>
-            <TabsTrigger value="routing">Routing</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="navigation">Navigation</TabsTrigger>
+            <TabsTrigger value="geofencing">Campus Maps</TabsTrigger>
             <TabsTrigger value="safety">Safety</TabsTrigger>
-            <TabsTrigger value="report">Report</TabsTrigger>
-            <TabsTrigger value="community">Community</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            {isAuthenticated && <TabsTrigger value="profile">Profile</TabsTrigger>}
           </TabsList>
 
-          <TabsContent value="map" className="space-y-6">
-            <SearchBar onLocationSelect={handleLocationSelect} />
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <CampusMap
-                selectedLocation={selectedLocation}
-                userLocation={userLocation}
-                alerts={alerts}
-                incidents={incidents}
-              />
-            </div>
-            {selectedLocation && (
+          <TabsContent value="navigation" className="space-y-6">
+            {/* Quick Stats for Students/Staff */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Directions to {selectedLocation.name}</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Your Location</CardTitle>
+                  <MapPin className="h-4 w-4 text-blue-500" />
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">
-                    Estimated walking time: {selectedLocation.walkTime || '5-10 minutes'}
-                  </p>
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-blue-800 text-sm">
-                      🎉 You earned 10 points for exploring AFIT campus!
-                    </p>
-                  </div>
+                  <div className="text-lg font-bold">Campus Center</div>
+                  <p className="text-xs text-muted-foreground">10.333°N, 7.750°E</p>
                 </CardContent>
               </Card>
-            )}
+              
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold">{alerts.length}</div>
+                  <p className="text-xs text-muted-foreground">Campus notifications</p>
+                </CardContent>
+              </Card>
 
-            {/* AFIT Buildings Quick Access */}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Navigation Mode</CardTitle>
+                  <Navigation className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-bold">Walking</div>
+                  <p className="text-xs text-muted-foreground">Optimized routes</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Interactive Campus Map */}
             <Card>
               <CardHeader>
-                <CardTitle>AFIT Buildings Quick Access</CardTitle>
-                <CardDescription>Navigate directly to major campus buildings</CardDescription>
+                <CardTitle>Interactive Campus Map</CardTitle>
+                <CardDescription>
+                  {isAuthenticated 
+                    ? "Navigate to your destinations with personalized routes" 
+                    : "Explore the campus - login for personalized navigation"}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {afitBuildings.slice(0, 6).map((building) => (
-                    <Button
-                      key={building.id}
-                      variant="outline"
-                      className="h-16 flex flex-col items-center justify-center space-y-1 relative"
-                      onClick={() => handleLocationSelect(building)}
-                    >
-                      <span className="text-lg">{building.type === 'residential' ? '🏠' : 
-                        building.type === 'academic' ? '🏛️' : 
-                        building.type === 'recreational' ? '🏃‍♂️' : '🏢'}</span>
-                      <span className="text-xs text-center">{building.name}</span>
-                      {building.events && building.events.length > 0 && (
-                        <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
-                      )}
-                    </Button>
-                  ))}
+                <CampusMap 
+                  selectedLocation={selectedLocation} 
+                  userLocation={{ lat: 10.333, lng: 7.750 }} 
+                  alerts={alerts} 
+                  incidents={incidents} 
+                />
+              </CardContent>
+            </Card>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button className="h-20 flex flex-col items-center justify-center" variant="outline">
+                <MapPin className="h-6 w-6 mb-2" />
+                Find Building
+              </Button>
+              <Button className="h-20 flex flex-col items-center justify-center" variant="outline">
+                <Navigation className="h-6 w-6 mb-2" />
+                Get Directions
+              </Button>
+              <Button className="h-20 flex flex-col items-center justify-center" variant="outline">
+                <Shield className="h-6 w-6 mb-2" />
+                Emergency Help
+              </Button>
+              <Button className="h-20 flex flex-col items-center justify-center" variant="outline">
+                <Calendar className="h-6 w-6 mb-2" />
+                Campus Events
+              </Button>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="geofencing">
+            <GeofencingModule 
+              defaultLocation={{ latitude: 10.333, longitude: 7.750 }}
+              isAdmin={false}
+              isAuthenticated={isAuthenticated}
+            />
+          </TabsContent>
+
+          <TabsContent value="safety">
+            <SafetyAlerts alerts={alerts} isAdmin={false} />
+          </TabsContent>
+
+          <TabsContent value="events">
+            <Card>
+              <CardHeader>
+                <CardTitle>Campus Events</CardTitle>
+                <CardDescription>Upcoming events and activities</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold">Student Orientation</h3>
+                    <p className="text-sm text-gray-600">Tomorrow, 10:00 AM - Main Auditorium</p>
+                    <Button size="sm" className="mt-2">Get Directions</Button>
+                  </div>
+                  <div className="p-4 border rounded-lg">
+                    <h3 className="font-semibold">Career Fair</h3>
+                    <p className="text-sm text-gray-600">Friday, 2:00 PM - Engineering Building</p>
+                    <Button size="sm" className="mt-2">Get Directions</Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="indoor">
-            <IndoorNavigation />
-          </TabsContent>
-
-          <TabsContent value="routing">
-            <MultiModalRouting />
-          </TabsContent>
-
-          <TabsContent value="safety">
-            <SafetyAlerts alerts={alerts} />
-          </TabsContent>
-
-          <TabsContent value="report">
-            <IncidentReport 
-              onReport={handleIncidentReport}
-              userLocation={userLocation}
-            />
-          </TabsContent>
-
-          <TabsContent value="community">
-            <div className="space-y-6">
-              {/* User Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Award className="h-5 w-5" />
-                      <span>Your Achievements</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-purple-100">Points: {userPoints}</p>
-                      <p className="text-purple-100">Badges: {userBadges}</p>
-                      <p className="text-purple-100">Rank: Explorer</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-green-500 to-teal-500 text-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Users className="h-5 w-5" />
-                      <span>Community Activity</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-green-100">Reports: {incidents.length}</p>
-                      <p className="text-green-100">Active Alerts: {alerts.length}</p>
-                      <p className="text-green-100">Campus Safety: 95%</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Navigation className="h-5 w-5" />
-                      <span>Your Activity</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-blue-100">Places Visited: 12</p>
-                      <p className="text-blue-100">Routes Taken: 8</p>
-                      <p className="text-blue-100">Incidents Reported: 2</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent Activity */}
+          {isAuthenticated && (
+            <TabsContent value="profile">
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Campus Activity</CardTitle>
-                  <CardDescription>Stay updated with what's happening on campus</CardDescription>
+                  <CardTitle>Your Profile</CardTitle>
+                  <CardDescription>Manage your campus profile and preferences</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                      <Calendar className="h-5 w-5 text-blue-500" />
-                      <div>
-                        <p className="font-medium">Campus Safety Walk</p>
-                        <p className="text-sm text-gray-600">Tomorrow at 7:00 PM - Main Quad</p>
-                      </div>
+                    <div>
+                      <h3 className="font-medium">Personal Information</h3>
+                      <p className="text-sm text-gray-600">Name: {user.name}</p>
+                      <p className="text-sm text-gray-600">Email: {user.email}</p>
+                      <p className="text-sm text-gray-600">Role: {userRole}</p>
                     </div>
-                    <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                      <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    {user.role === 'student' && (
                       <div>
-                        <p className="font-medium">Construction Notice</p>
-                        <p className="text-sm text-gray-600">Science Building entrance closed until Friday</p>
+                        <h3 className="font-medium">Campus Points</h3>
+                        <p className="text-sm text-gray-600">Points: {user.points || 0}</p>
+                        <p className="text-sm text-gray-600">Badges: {user.badges?.length || 0}</p>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                      <Award className="h-5 w-5 text-purple-500" />
-                      <div>
-                        <p className="font-medium">New Badge Available</p>
-                        <p className="text-sm text-gray-600">Report 5 incidents to earn "Community Guardian" badge</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center space-y-2"
-                      onClick={() => setActiveTab('report')}
-                    >
-                      <AlertTriangle className="h-5 w-5" />
-                      <span className="text-xs">Report Issue</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center space-y-2"
-                      onClick={() => setActiveTab('safety')}
-                    >
-                      <AlertTriangle className="h-5 w-5" />
-                      <span className="text-xs">View Alerts</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center space-y-2"
-                      onClick={() => setActiveTab('map')}
-                    >
-                      <MapPin className="h-5 w-5" />
-                      <span className="text-xs">Find Location</span>
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="h-20 flex flex-col items-center justify-center space-y-2"
-                      onClick={() => setActiveTab('routing')}
-                    >
-                      <Navigation className="h-5 w-5" />
-                      <span className="text-xs">Get Directions</span>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

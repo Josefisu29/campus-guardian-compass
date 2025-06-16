@@ -40,16 +40,16 @@ const Index = () => {
     return <Auth />;
   }
 
-  // Role-based access control and routing
+  // Strict Role-Based Access Control (RBAC)
   console.log('Routing authenticated user with role:', user.role);
   
-  // Admin access - only users with 'admin' role
+  // Admin access - COMPULSORY authentication for admin features
   if (user.role === 'admin') {
     console.log('Granting admin access to:', user.email);
     return <AdminDashboard />;
   }
 
-  // Student and Staff access - both use StudentDashboard but with different permissions
+  // Student and Staff access - OPTIONAL authentication with enhanced features when logged in
   if (user.role === 'student' || user.role === 'staff') {
     console.log(`Granting ${user.role} access to:`, user.email);
     return <StudentDashboard />;

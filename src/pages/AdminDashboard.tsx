@@ -1,19 +1,34 @@
 
 import React, { useState } from 'react';
-import { Users, AlertTriangle, MapPin, BarChart3, Settings, Shield } from 'lucide-react';
+import { Users, AlertTriangle, MapPin, BarChart3, Settings, Shield, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CampusMap from '../components/CampusMap';
 import AdminPanel from '../components/AdminPanel';
 import SafetyAlerts from '../components/SafetyAlerts';
+import GeofencingModule from '../components/GeofencingModule';
 import { useFirebase } from '../hooks/useFirebase';
 import { useAuth } from '../contexts/AuthContext';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { alerts, incidents } = useFirebase();
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Enforce admin-only access
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-red-100">
+        <div className="text-center max-w-md">
+          <Shield className="mx-auto h-16 w-16 text-red-600 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-4">Administrator privileges required to access this page.</p>
+          <Button onClick={logout} variant="outline">Return to Login</Button>
+        </div>
+      </div>
+    );
+  }
 
   const stats = {
     totalUsers: 1250,
@@ -29,12 +44,18 @@ const AdminDashboard = () => {
           <div className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="text-gray-600">Manage campus safety and navigation</p>
+                <h1 className="text-2xl font-bold text-gray-900">Admin Control Center</h1>
+                <p className="text-gray-600">Campus Security & Management Dashboard</p>
               </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="h-5 w-5 text-blue-600" />
-                <span className="text-sm font-medium text-gray-700">Administrator</span>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-5 w-5 text-red-600" />
+                  <span className="text-sm font-medium text-gray-700">Administrator: {user.name}</span>
+                </div>
+                <Button onClick={logout} variant="outline" size="sm">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
               </div>
             </div>
           </div>
@@ -43,8 +64,9 @@ const AdminDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="geofencing">3D Geofencing</TabsTrigger>
             <TabsTrigger value="locations">Locations</TabsTrigger>
             <TabsTrigger value="alerts">Safety Alerts</TabsTrigger>
             <TabsTrigger value="incidents">Incidents</TabsTrigger>
@@ -99,52 +121,28 @@ const AdminDashboard = () => {
               </Card>
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Incidents</CardTitle>
-                  <CardDescription>Latest safety reports from users</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {incidents.slice(0, 3).map((incident) => (
-                      <div key={incident.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                        <AlertTriangle className="h-4 w-4 text-orange-500" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{incident.title}</p>
-                          <p className="text-xs text-gray-500">{incident.location}</p>
-                        </div>
-                        <Button variant="outline" size="sm">Review</Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Campus Map Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Live Campus Overview</CardTitle>
+                <CardDescription>Real-time campus monitoring and navigation</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CampusMap 
+                  selectedLocation={null} 
+                  userLocation={{ lat: 10.333, lng: 7.750 }} 
+                  alerts={alerts} 
+                  incidents={incidents} 
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>System Status</CardTitle>
-                  <CardDescription>Current system health and performance</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <span className="text-sm font-medium">Navigation System</span>
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Online</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                      <span className="text-sm font-medium">Alert System</span>
-                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Online</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                      <span className="text-sm font-medium">Database</span>
-                      <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">Maintenance</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          <TabsContent value="geofencing">
+            <GeofencingModule 
+              defaultLocation={{ latitude: 10.333, longitude: 7.750 }}
+              isAdmin={true}
+            />
           </TabsContent>
 
           <TabsContent value="locations">
