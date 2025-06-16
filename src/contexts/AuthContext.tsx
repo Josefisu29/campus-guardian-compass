@@ -18,6 +18,13 @@ interface User {
   name?: string;
   points?: number;
   badges?: string[];
+  assignedBuildings?: string[]; // For staff
+  preferences?: {
+    notifications: boolean;
+    language: string;
+    accessibility: boolean;
+    bookmarks: string[];
+  };
 }
 
 interface AuthContextType {
@@ -26,6 +33,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role: string) => Promise<void>;
   logout: () => Promise<void>;
+  setTestUser: (role: 'admin' | 'student' | 'staff') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,8 +47,53 @@ const validateRole = (role: string): role is 'admin' | 'student' | 'staff' => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Set to false for testing
   const { toast } = useToast();
+
+  // TEST MODE: Set a test user directly
+  const setTestUser = (role: 'admin' | 'student' | 'staff') => {
+    const testUsers = {
+      admin: {
+        uid: 'test-admin-uid',
+        email: 'admin@afit.edu.ng',
+        role: 'admin' as const,
+        name: 'Test Administrator',
+      },
+      staff: {
+        uid: 'test-staff-uid',
+        email: 'staff@afit.edu.ng',
+        role: 'staff' as const,
+        name: 'Test Staff Member',
+        assignedBuildings: ['building-1', 'building-2'],
+        preferences: {
+          notifications: true,
+          language: 'en',
+          accessibility: false,
+          bookmarks: []
+        }
+      },
+      student: {
+        uid: 'test-student-uid',
+        email: 'student@afit.edu.ng',
+        role: 'student' as const,
+        name: 'Test Student',
+        points: 150,
+        badges: ['Newcomer', 'Explorer'],
+        preferences: {
+          notifications: true,
+          language: 'en',
+          accessibility: false,
+          bookmarks: ['building-1', 'event-1']
+        }
+      }
+    };
+    
+    setUser(testUsers[role]);
+    toast({
+      title: "Test Mode",
+      description: `Logged in as ${role}`,
+    });
+  };
 
   const login = async (email: string, password: string) => {
     try {
@@ -106,8 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       console.log('Logging out user:', user?.email);
-      await signOut(auth);
-      setUser(null); // Clear user state immediately
+      // In test mode, just clear the user
+      setUser(null);
       toast({
         title: "Success",
         description: "Successfully logged out!",
@@ -122,6 +175,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Comment out Firebase auth listener for testing
+  /*
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       console.log('Auth state changed:', firebaseUser?.email);
@@ -206,9 +261,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => unsubscribe();
   }, []);
+  */
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, setTestUser }}>
       {children}
     </AuthContext.Provider>
   );
