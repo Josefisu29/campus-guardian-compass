@@ -8,7 +8,15 @@ import {
   updateDoc, 
   increment 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { 
+  ref, 
+  push, 
+  onValue, 
+  update,
+  serverTimestamp,
+  off
+} from 'firebase/database';
+import { db, rtdb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
 interface Alert {
@@ -35,55 +43,84 @@ export const useFirebase = () => {
   const { user } = useAuth();
   const userPoints = user?.points || 0;
 
-  // Listen to alerts collection
+  // Listen to alerts from Realtime Database
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'alerts'), (snapshot) => {
-      const alertsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Alert[];
+    const alertsRef = ref(rtdb, 'alerts');
+    
+    const unsubscribe = onValue(alertsRef, (snapshot) => {
+      const alertsData: Alert[] = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(key => {
+          alertsData.push({
+            id: key,
+            ...data[key]
+          });
+        });
+      }
       setAlerts(alertsData);
     });
 
-    return () => unsubscribe();
+    return () => off(alertsRef, 'value', unsubscribe);
   }, []);
 
-  // Listen to incidents collection
+  // Listen to incidents from Realtime Database
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'incidents'), (snapshot) => {
-      const incidentsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Incident[];
+    const incidentsRef = ref(rtdb, 'incidents');
+    
+    const unsubscribe = onValue(incidentsRef, (snapshot) => {
+      const incidentsData: Incident[] = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(key => {
+          incidentsData.push({
+            id: key,
+            ...data[key]
+          });
+        });
+      }
       setIncidents(incidentsData);
     });
 
-    return () => unsubscribe();
+    return () => off(incidentsRef, 'value', unsubscribe);
   }, []);
 
   const updateUserPoints = async (points: number) => {
     if (user) {
+      // Update in Firestore for user profile
       await updateDoc(doc(db, 'users', user.uid), {
         points: increment(points)
       });
+      
+      // Also update in Realtime Database for real-time sync
+      const userRef = ref(rtdb, `users/${user.uid}/points`);
+      await update(userRef, {
+        points: (userPoints + points),
+        lastUpdated: serverTimestamp()
+      });
+      
       console.log(`User earned ${points} points`);
     }
   };
 
   const addIncident = async (incident: Omit<Incident, 'id' | 'timestamp' | 'reportedBy'>) => {
     if (user) {
-      await addDoc(collection(db, 'incidents'), {
+      const incidentsRef = ref(rtdb, 'incidents');
+      await push(incidentsRef, {
         ...incident,
         timestamp: new Date().toISOString(),
-        reportedBy: user.uid
+        reportedBy: user.uid,
+        createdAt: serverTimestamp()
       });
     }
   };
 
   const addAlert = async (alert: Omit<Alert, 'id' | 'timestamp'>) => {
-    await addDoc(collection(db, 'alerts'), {
+    const alertsRef = ref(rtdb, 'alerts');
+    await push(alertsRef, {
       ...alert,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      createdAt: serverTimestamp()
     });
   };
 

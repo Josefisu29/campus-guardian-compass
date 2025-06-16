@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   signInWithEmailAndPassword, 
@@ -100,6 +99,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Attempting login for:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful for:', userCredential.user.email);
+      
+      // Set user online in Realtime Database
+      const { ref, set, serverTimestamp } = await import('firebase/database');
+      const { rtdb } = await import('../config/firebase');
+      const userStatusRef = ref(rtdb, `onlineUsers/${userCredential.user.uid}`);
+      await set(userStatusRef, {
+        email: userCredential.user.email,
+        isOnline: true,
+        lastSeen: serverTimestamp()
+      });
+      
       toast({
         title: "Success",
         description: "Successfully logged in!",
@@ -166,6 +176,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       console.log('Logging out user:', user?.email);
+      
+      // Set user offline in Realtime Database
+      if (user) {
+        const { ref, update, serverTimestamp } = await import('firebase/database');
+        const { rtdb } = await import('../config/firebase');
+        const userStatusRef = ref(rtdb, `onlineUsers/${user.uid}`);
+        await update(userStatusRef, {
+          isOnline: false,
+          lastSeen: serverTimestamp()
+        });
+      }
+      
       await signOut(auth);
       toast({
         title: "Success",
