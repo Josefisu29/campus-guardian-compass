@@ -91,7 +91,7 @@ export const useRealtimeDatabase = () => {
     });
 
     // Listen to online users
-    const usersRef = ref(rtdb, 'users');
+    const usersRef = ref(rtdb, 'onlineUsers');
     const usersUnsubscribe = onValue(usersRef, (snapshot) => {
       const usersData: OnlineUser[] = [];
       if (snapshot.exists()) {
@@ -100,7 +100,7 @@ export const useRealtimeDatabase = () => {
           if (data[key].isOnline) {
             usersData.push({
               id: key,
-              displayName: data[key].displayName || 'Anonymous',
+              displayName: data[key].displayName || data[key].email || 'Anonymous',
               lastSeen: data[key].lastSeen || new Date().toISOString()
             });
           }
@@ -127,11 +127,12 @@ export const useRealtimeDatabase = () => {
 
     // Set user as online when hook mounts
     if (user) {
-      const userStatusRef = ref(rtdb, `users/${user.uid}`);
+      const userStatusRef = ref(rtdb, `onlineUsers/${user.uid}`);
       update(userStatusRef, {
         isOnline: true,
         lastSeen: serverTimestamp(),
-        displayName: user.displayName || user.email
+        displayName: user.name || user.email,
+        email: user.email
       });
     }
 
@@ -144,7 +145,7 @@ export const useRealtimeDatabase = () => {
 
       // Set user as offline when hook unmounts
       if (user) {
-        const userStatusRef = ref(rtdb, `users/${user.uid}`);
+        const userStatusRef = ref(rtdb, `onlineUsers/${user.uid}`);
         update(userStatusRef, {
           isOnline: false,
           lastSeen: serverTimestamp()
