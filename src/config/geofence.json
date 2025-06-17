@@ -1,0 +1,28 @@
+
+{
+  "center": {
+    "latitude": 10.333000,
+    "longitude": 7.750000
+  },
+  "radii": [500, 1000, 1500, 2000],
+  "locations": [
+    { "id": "alfa_hall", "name": "Ibrahim Alfa Hall", "lat": 10.333674, "lng": 7.749362, "type": "residential" },
+    { "id": "library", "name": "AFIT Library", "lat": 10.334120, "lng": 7.749732, "type": "academic" },
+    { "id": "admin_block", "name": "Main Admin Block", "lat": 10.333958, "lng": 7.750204, "type": "administrative" },
+    { "id": "stadium", "name": "Stadium (Sports Complex)", "lat": 10.333612, "lng": 7.751177, "type": "recreational" },
+    { "id": "lecture_theatre", "name": "Lecture Theatre Complex", "lat": 10.333326, "lng": 7.750579, "type": "academic" },
+    { "id": "hostels", "name": "Officer Cadets Hostels A–D", "lat": 10.334300, "lng": 7.749900, "type": "residential" },
+    { "id": "air_eng_block", "name": "Air Engineering Block", "lat": 10.334600, "lng": 7.750500, "type": "academic" },
+    { "id": "computing_block", "name": "Computing Block", "lat": 10.333800, "lng": 7.750800, "type": "academic" },
+    { "id": "ground_comm_block", "name": "Ground & Communication Eng.", "lat": 10.334000, "lng": 7.751000, "type": "academic" },
+    { "id": "social_mgmt_block", "name": "Social & Management Sciences", "lat": 10.333500, "lng": 7.749500, "type": "academic" },
+    { "id": "sciences_block", "name": "Faculty of Sciences Block", "lat": 10.333900, "lng": 7.751500, "type": "academic" },
+    { "id": "sps", "name": "School of Postgraduate Studies", "lat": 10.334200, "lng": 7.750200, "type": "academic" },
+    { "id": "medical_clinic", "name": "AFIT Medical Clinic", "lat": 10.332800, "lng": 7.749800, "type": "service" },
+    { "id": "cafeteria", "name": "Main Cafeteria / Dining Hall", "lat": 10.333700, "lng": 7.749200, "type": "service" },
+    { "id": "chapel", "name": "Chapel / Multi‑Faith Centre", "lat": 10.334000, "lng": 7.749400, "type": "service" },
+    { "id": "guest_house", "name": "Guest House / Staff Quarters", "lat": 10.334400, "lng": 7.751200, "type": "residential" },
+    { "id": "naf_hospital", "name": "NAF Hospital (adjacent)", "lat": 10.332500, "lng": 7.752000, "type": "service" },
+    { "id": "rec_center", "name": "Fitness & Recreation Centre", "lat": 10.333200, "lng": 7.748800, "type": "recreational" }
+  ]
+}
