@@ -4,29 +4,193 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Campus Navigator - Smart Campus Navigation</title>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyADrTuJRmbHBeQFXvU2BG-l6LAkG2yMr7g&callback=initMap" async defer></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Firebase SDK -->
+  <title>AFIT Campus Navigator - Smart Campus Navigation</title>
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#003366">
+  
+  <!-- Icons -->
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  
+  <!-- Google Maps API -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyADrTuJRmbHBeQFXvU2BG-l6LAkG2yMr7g&libraries=geometry&callback=initMap" async defer></script>
+  
+  <!-- Firebase SDK v10 -->
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+  
+  <!-- Fuse.js for search -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
   <style>
-    .hero-pattern {
-      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233B82F6' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    :root {
+      --afit-primary: #003366;
+      --afit-secondary: #FFD700;
+      --afit-accent: #1E40AF;
     }
+    
+    .hero-pattern {
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23003366' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
     .fade-in {
       opacity: 0;
       transform: translateY(20px);
       transition: opacity 0.6s ease-out, transform 0.6s ease-out;
     }
+    
     .fade-in.visible {
       opacity: 1;
       transform: translateY(0);
     }
+    
+    .map-container {
+      position: relative;
+      width: 100%;
+      height: 500px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,51,102,0.2);
+    }
+    
+    .building-marker {
+      background: var(--afit-primary);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,51,102,0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .building-marker:hover {
+      transform: scale(1.1);
+      background: var(--afit-accent);
+    }
+    
+    .radius-circle {
+      stroke-width: 2;
+      fill: transparent;
+      opacity: 0.7;
+    }
+    
+    .radius-500 { stroke: #10B981; }
+    .radius-1000 { stroke: #F59E0B; }
+    .radius-1500 { stroke: #EF4444; }
+    .radius-2000 { stroke: #8B5CF6; }
+    
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #EF4444;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 1000;
+    }
+    
+    .swiper-container {
+      width: 100%;
+      height: 200px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .accessibility-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .font-size-small { font-size: 0.8rem; }
+    .font-size-normal { font-size: 1rem; }
+    .font-size-large { font-size: 1.2rem; }
+    .font-size-xl { font-size: 1.4rem; }
+    
+    .high-contrast {
+      filter: contrast(2) brightness(1.2);
+    }
+    
+    .offline-indicator {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: #EF4444;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .offline-indicator.show {
+      display: block;
+    }
+    
+    @media (max-width: 768px) {
+      .map-container {
+        height: 400px;
+      }
+      
+      .accessibility-controls {
+        top: 10px;
+        right: 10px;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-50">
+  <!-- Offline Indicator -->
+  <div id="offlineIndicator" class="offline-indicator">
+    <span>🔴 Offline Mode - Limited functionality</span>
+  </div>
+
+  <!-- Accessibility Controls -->
+  <div class="accessibility-controls">
+    <button id="fontSizeBtn" class="bg-white p-2 rounded-full shadow-md" title="Font Size">
+      <span class="text-sm">Aa</span>
+    </button>
+    <button id="contrastBtn" class="bg-white p-2 rounded-full shadow-md" title="High Contrast">
+      <span class="text-sm">🌗</span>
+    </button>
+    <button id="languageBtn" class="bg-white p-2 rounded-full shadow-md" title="Language">
+      <span class="text-sm">🌐</span>
+    </button>
+  </div>
+
   <!-- Landing Page -->
   <div id="landingPage" class="min-h-screen">
     <!-- Navigation -->
@@ -35,20 +199,20 @@
         <div class="flex justify-between h-16">
           <div class="flex items-center">
             <div class="flex-shrink-0 flex items-center">
-              <div class="bg-blue-600 p-2 rounded-lg">
+              <div class="p-2 rounded-lg" style="background-color: var(--afit-primary);">
                 <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                 </svg>
               </div>
-              <span class="ml-3 text-xl font-bold text-gray-900">Campus Navigator</span>
+              <span class="ml-3 text-xl font-bold" style="color: var(--afit-primary);">AFIT Campus Navigator</span>
             </div>
           </div>
           <div class="flex items-center space-x-4">
             <button onclick="showLogin()" class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md font-medium">
               Sign In
             </button>
-            <button onclick="showSignup()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">
+            <button onclick="showSignup()" class="text-white px-4 py-2 rounded-md font-medium" style="background-color: var(--afit-primary);">
               Get Started
             </button>
           </div>
@@ -57,22 +221,22 @@
     </nav>
 
     <!-- Hero Section -->
-    <div class="hero-pattern bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
+    <div class="hero-pattern py-20" style="background: linear-gradient(135deg, #f0f8ff 0%, #e6f2ff 100%);">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-6 fade-in">
-            Navigate Your Campus
-            <span class="text-blue-600">Smartly & Safely</span>
+          <h1 class="text-4xl md:text-6xl font-bold mb-6 fade-in" style="color: var(--afit-primary);">
+            Navigate AFIT Campus
+            <span style="color: var(--afit-secondary);">Smartly & Safely</span>
           </h1>
           <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto fade-in">
-            Your intelligent campus companion with real-time safety alerts, crowdsourced reporting, 
-            and gamified exploration. Make every journey on campus safe, efficient, and rewarding.
+            Your intelligent campus companion with real-time safety alerts, 3D mapping, 
+            geofencing, and offline support. Explore the Air Force Institute of Technology with confidence.
           </p>
           <div class="space-x-4 fade-in">
-            <button onclick="showSignup()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg text-lg font-semibold">
+            <button onclick="showSignup()" class="text-white px-8 py-3 rounded-lg text-lg font-semibold" style="background-color: var(--afit-primary);">
               Start Exploring
             </button>
-            <button onclick="showLogin()" class="border border-blue-600 text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-lg text-lg font-semibold">
+            <button onclick="showLogin()" class="border px-8 py-3 rounded-lg text-lg font-semibold" style="border-color: var(--afit-primary); color: var(--afit-primary);">
               Sign In
             </button>
           </div>
@@ -84,40 +248,53 @@
     <div class="py-20 bg-white">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-16">
-          <h2 class="text-3xl font-bold text-gray-900 mb-4">Everything You Need for Campus Navigation</h2>
-          <p class="text-gray-600 max-w-2xl mx-auto">From interactive maps to safety alerts and gamified exploration</p>
+          <h2 class="text-3xl font-bold mb-4" style="color: var(--afit-primary);">Complete Campus Navigation Solution</h2>
+          <p class="text-gray-600 max-w-2xl mx-auto">Advanced features designed specifically for AFIT Kaduna</p>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div class="text-center p-6 fade-in">
-            <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background-color: rgba(0,51,102,0.1);">
+              <svg class="h-8 w-8" style="color: var(--afit-primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m-6 3l6-3"></path>
               </svg>
             </div>
-            <h3 class="text-xl font-semibold mb-2">Interactive Navigation</h3>
-            <p class="text-gray-600">Real-time directions with accessibility options and offline support</p>
+            <h3 class="text-xl font-semibold mb-2">3D Interactive Mapping</h3>
+            <p class="text-gray-600">Real-time 3D campus visualization with geofencing and radius rings</p>
           </div>
           
           <div class="text-center p-6 fade-in">
-            <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background-color: rgba(239,68,68,0.1);">
               <svg class="h-8 w-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.316 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
               </svg>
             </div>
-            <h3 class="text-xl font-semibold mb-2">Safety Alerts</h3>
-            <p class="text-gray-600">Real-time safety notifications and safe route recommendations</p>
+            <h3 class="text-xl font-semibold mb-2">Real-Time Safety Alerts</h3>
+            <p class="text-gray-600">Instant notifications and safe route recommendations</p>
           </div>
           
           <div class="text-center p-6 fade-in">
-            <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style="background-color: rgba(16,185,129,0.1);">
               <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 4v12l-4-2-4 2V4M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
               </svg>
             </div>
-            <h3 class="text-xl font-semibold mb-2">Gamified Experience</h3>
-            <p class="text-gray-600">Earn points, unlock badges, and get rewards for campus exploration</p>
+            <h3 class="text-xl font-semibold mb-2">PWA & Offline Support</h3>
+            <p class="text-gray-600">Works offline with cached maps and data synchronization</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Campus Preview -->
+    <div class="py-20" style="background-color: #f8fafc;">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="text-center mb-12">
+          <h2 class="text-3xl font-bold mb-4" style="color: var(--afit-primary);">AFIT Campus Overview</h2>
+          <p class="text-gray-600">Interactive preview of our campus mapping system</p>
+        </div>
+        <div class="map-container mx-auto max-w-4xl">
+          <div id="previewMap" style="width: 100%; height: 100%;"></div>
         </div>
       </div>
     </div>
@@ -127,29 +304,29 @@
   <div id="loginModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
       <div class="text-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Welcome Back</h2>
-        <p class="text-gray-600">Sign in to your Campus Navigator account</p>
+        <h2 class="text-2xl font-bold" style="color: var(--afit-primary);">Welcome Back</h2>
+        <p class="text-gray-600">Sign in to your AFIT Campus Navigator account</p>
       </div>
       
       <form id="loginForm" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input type="email" id="loginEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="email" id="loginEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input type="password" id="loginPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="password" id="loginPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
         </div>
         
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium">
+        <button type="submit" class="w-full text-white py-2 rounded-md font-medium" style="background-color: var(--afit-primary);">
           Sign In
         </button>
       </form>
       
       <div class="mt-4 text-center">
         <p class="text-gray-600">Don't have an account? 
-          <button onclick="showSignup()" class="text-blue-600 hover:underline">Sign up</button>
+          <button onclick="showSignup()" class="hover:underline" style="color: var(--afit-primary);">Sign up</button>
         </p>
       </div>
       
@@ -165,43 +342,44 @@
   <div id="signupModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-8 max-w-md w-full mx-4">
       <div class="text-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Join Campus Navigator</h2>
+        <h2 class="text-2xl font-bold" style="color: var(--afit-primary);">Join AFIT Campus Navigator</h2>
         <p class="text-gray-600">Create your account and start exploring</p>
       </div>
       
       <form id="signupForm" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-          <input type="text" id="signupName" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="signupName" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-          <input type="email" id="signupEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="email" id="signupEmail" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input type="password" id="signupPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="password" id="signupPassword" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
         </div>
         
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-          <select id="signupRole" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <select id="signupRole" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2" style="--tw-ring-color: var(--afit-primary);">
             <option value="">Select your role</option>
-            <option value="student">Student</option>
-            <option value="staff">Staff</option>
+            <option value="student">Student/Cadet</option>
+            <option value="staff">Staff/Faculty</option>
+            <option value="admin">Administrator</option>
           </select>
         </div>
         
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md font-medium">
+        <button type="submit" class="w-full text-white py-2 rounded-md font-medium" style="background-color: var(--afit-primary);">
           Create Account
         </button>
       </form>
       
       <div class="mt-4 text-center">
         <p class="text-gray-600">Already have an account? 
-          <button onclick="showLogin()" class="text-blue-600 hover:underline">Sign in</button>
+          <button onclick="showLogin()" class="hover:underline" style="color: var(--afit-primary);">Sign in</button>
         </p>
       </div>
       
@@ -213,18 +391,26 @@
     </div>
   </div>
 
-  <!-- Campus Navigator App (Hidden Initially) -->
+  <!-- Main Campus Navigator App -->
   <div id="campusApp" class="hidden min-h-screen">
     <!-- Header -->
-    <header class="p-4 bg-blue-600 text-white">
+    <header class="p-4 text-white" style="background-color: var(--afit-primary);">
       <div class="flex justify-between items-center">
         <div>
-          <h1 class="text-xl font-bold">Campus Navigator</h1>
+          <h1 class="text-xl font-bold">AFIT Campus Navigator</h1>
           <p id="userInfo">Welcome back!</p>
         </div>
         <div class="flex items-center space-x-4">
-          <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">
-            <span id="pointsDisplay">0 points</span>
+          <div class="relative">
+            <button id="notificationBtn" class="p-2 rounded-full bg-white bg-opacity-20 relative">
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5-5m0 5v-5h-5m5 5l-5-5"></path>
+              </svg>
+              <span id="notificationBadge" class="notification-badge hidden">0</span>
+            </button>
+          </div>
+          <div class="text-xs" style="background-color: var(--afit-secondary); color: var(--afit-primary);" class="px-3 py-1 rounded-full">
+            <span id="statusDisplay">Online</span>
           </div>
           <button onclick="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-sm">
             Logout
@@ -236,25 +422,25 @@
     <!-- Navigation Tabs -->
     <div class="bg-white border-b border-gray-200">
       <div class="flex space-x-8 overflow-x-auto px-4">
-        <button onclick="showTab('map')" id="mapTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-blue-500 text-blue-600 font-medium text-sm whitespace-nowrap">
+        <button onclick="showTab('dashboard')" id="dashboardTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap" style="border-color: var(--afit-primary); color: var(--afit-primary);">
+          <span>🏠</span>
+          <span>Dashboard</span>
+        </button>
+        <button onclick="showTab('map')" id="mapTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
           <span>🗺️</span>
-          <span>Map</span>
+          <span>3D Campus Map</span>
         </button>
-        <button onclick="showTab('indoor')" id="indoorTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+        <button onclick="showTab('buildings')" id="buildingsTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
           <span>🏢</span>
-          <span>Indoor Nav</span>
+          <span>Buildings</span>
         </button>
-        <button onclick="showTab('routing')" id="routingTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
-          <span>🚶</span>
-          <span>Routing</span>
+        <button onclick="showTab('events')" id="eventsTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+          <span>📅</span>
+          <span>Events</span>
         </button>
-        <button onclick="showTab('alerts')" id="alertsTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
+        <button onclick="showTab('safety')" id="safetyTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
           <span>🛡️</span>
           <span>Safety</span>
-        </button>
-        <button onclick="showTab('report')" id="reportTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap">
-          <span>⚠️</span>
-          <span>Report</span>
         </button>
         <button onclick="showTab('admin')" id="adminTab" class="flex items-center space-x-2 py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm whitespace-nowrap hidden">
           <span>👥</span>
@@ -265,267 +451,237 @@
 
     <!-- Main Content -->
     <main class="p-6">
+      <!-- Dashboard Tab -->
+      <div id="dashboardContent" class="tab-content">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <!-- Quick Stats -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Campus Status</h3>
+            <div class="space-y-3">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Buildings:</span>
+                <span class="font-semibold" id="buildingCount">18</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Active Events:</span>
+                <span class="font-semibold" id="eventCount">0</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Online Users:</span>
+                <span class="font-semibold" id="onlineCount">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Next Event -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Next Event</h3>
+            <div id="nextEvent" class="text-gray-600">
+              No upcoming events
+            </div>
+          </div>
+
+          <!-- Weather Widget -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Campus Weather</h3>
+            <div id="weatherWidget" class="text-center">
+              <div class="text-3xl mb-2">☀️</div>
+              <div class="font-semibold">28°C</div>
+              <div class="text-sm text-gray-600">Sunny</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Recent Activity</h3>
+          <div id="recentActivity" class="space-y-3">
+            <!-- Activity items will be populated here -->
+          </div>
+        </div>
+      </div>
+
       <!-- Map Tab -->
-      <div id="mapContent" class="tab-content">
-        <!-- Search -->
+      <div id="mapContent" class="tab-content hidden">
+        <!-- Map Controls -->
         <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
-            </div>
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Search for buildings, departments, or services..."
-              class="block w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-            />
-          </div>
-          <button onclick="handleSearch()" class="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">
-            Search
-          </button>
-        </div>
-
-        <!-- Map -->
-        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-          <div id="map" class="h-96"></div>
-        </div>
-
-        <!-- Directions -->
-        <div id="directionsContainer" class="mt-6 bg-white p-6 rounded-xl shadow-lg hidden">
-          <div id="directionsContent"></div>
-        </div>
-      </div>
-
-      <!-- Indoor Navigation Tab -->
-      <div id="indoorContent" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">Indoor Navigation</h2>
-          
-          <!-- Building Selection -->
-          <div class="mb-4">
-            <label class="block text-sm font-medium mb-2">Select Building:</label>
-            <select id="buildingSelect" class="w-full p-2 border rounded-md">
-              <option value="">Choose a building...</option>
-              <option value="science">Science Building</option>
-              <option value="library">Main Library</option>
-            </select>
-          </div>
-
-          <!-- Floor Selection -->
-          <div id="floorSelection" class="mb-4 hidden">
-            <label class="block text-sm font-medium mb-2">Select Floor:</label>
-            <select id="floorSelect" class="w-full p-2 border rounded-md">
-              <option value="">Choose a floor...</option>
-            </select>
-          </div>
-
-          <!-- Room Selection -->
-          <div id="roomSelection" class="mb-4 hidden">
-            <label class="block text-sm font-medium mb-2">Select Room:</label>
-            <select id="roomSelect" class="w-full p-2 border rounded-md">
-              <option value="">Choose a room...</option>
-            </select>
-          </div>
-
-          <!-- Floor Plan -->
-          <div id="floorPlan" class="mt-6 hidden">
-            <h4 class="font-medium mb-3">Floor Plan</h4>
-            <div id="floorPlanContainer" class="relative bg-gray-100 border rounded-lg p-4" style="height: 300px;">
-              <!-- Floor plan will be rendered here -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Multi-Modal Routing Tab -->
-      <div id="routingContent" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">Multi-Modal Routing</h2>
-          
-          <!-- Location Selection -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block text-sm font-medium mb-2">From:</label>
-              <select id="fromLocation" class="w-full p-2 border rounded-md">
-                <option value="">Select starting location...</option>
-                <option value="Main Library">Main Library</option>
-                <option value="Science Building">Science Building</option>
-                <option value="Student Center">Student Center</option>
-                <option value="Cafeteria">Cafeteria</option>
-                <option value="Parking Lot A">Parking Lot A</option>
-                <option value="Gym">Gym</option>
-                <option value="Admin Building">Admin Building</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">To:</label>
-              <select id="toLocation" class="w-full p-2 border rounded-md">
-                <option value="">Select destination...</option>
-                <option value="Main Library">Main Library</option>
-                <option value="Science Building">Science Building</option>
-                <option value="Student Center">Student Center</option>
-                <option value="Cafeteria">Cafeteria</option>
-                <option value="Parking Lot A">Parking Lot A</option>
-                <option value="Gym">Gym</option>
-                <option value="Admin Building">Admin Building</option>
-              </select>
-            </div>
-          </div>
-
-          <button onclick="generateRoutes()" class="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 mb-6">
-            Find Routes
-          </button>
-
-          <!-- Route Options -->
-          <div id="routeOptions" class="hidden space-y-3">
-            <h4 class="font-medium">Route Options:</h4>
-            <div id="routesList"></div>
-          </div>
-
-          <!-- Live Traffic Information -->
-          <div id="trafficInfo" class="mt-6 p-4 bg-gray-50 rounded-lg hidden">
-            <h4 class="font-medium mb-2">Live Campus Traffic</h4>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span>Main Walkway:</span>
-                <span class="text-green-600">Light Traffic</span>
+          <div class="flex flex-wrap gap-4 items-center justify-between">
+            <!-- Search -->
+            <div class="relative flex-1 min-w-64">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
               </div>
-              <div class="flex justify-between">
-                <span>Parking Lot A:</span>
-                <span class="text-red-600">Heavy Traffic</span>
-              </div>
-              <div class="flex justify-between">
-                <span>Shuttle Route 1:</span>
-                <span class="text-yellow-600">Moderate Delay</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Safety Alerts Tab -->
-      <div id="alertsContent" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">Safety Center</h2>
-          
-          <!-- Active Alerts -->
-          <div class="mb-8">
-            <h3 class="text-lg font-semibold mb-4">Active Alerts</h3>
-            <div id="activeAlerts" class="space-y-4">
-              <!-- Alerts will be populated here -->
-            </div>
-          </div>
-
-          <!-- Safety Tips -->
-          <div class="bg-blue-50 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-blue-900 mb-4">Safety Tips</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="flex items-start space-x-3">
-                <div class="bg-blue-200 rounded-full p-2">
-                  <span>🛡️</span>
-                </div>
-                <div>
-                  <h4 class="font-medium text-blue-900">Stay Alert</h4>
-                  <p class="text-sm text-blue-700">Always be aware of your surroundings while walking on campus.</p>
-                </div>
-              </div>
-              <div class="flex items-start space-x-3">
-                <div class="bg-blue-200 rounded-full p-2">
-                  <span>⚠️</span>
-                </div>
-                <div>
-                  <h4 class="font-medium text-blue-900">Report Issues</h4>
-                  <p class="text-sm text-blue-700">Use the report feature to notify others of safety concerns.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Report Tab -->
-      <div id="reportContent" class="tab-content hidden">
-        <div class="bg-white rounded-xl shadow-lg p-6">
-          <h2 class="text-2xl font-bold mb-6">Report an Issue</h2>
-          
-          <form id="reportForm" class="space-y-6">
-            <!-- Report Type -->
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-3">
-                What type of issue are you reporting?
-              </label>
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <button type="button" onclick="selectReportType('safety')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
-                  <div class="text-2xl mb-2">⚠️</div>
-                  <div class="font-medium text-sm">Safety Hazard</div>
-                </button>
-                <button type="button" onclick="selectReportType('maintenance')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
-                  <div class="text-2xl mb-2">🔧</div>
-                  <div class="font-medium text-sm">Maintenance Issue</div>
-                </button>
-                <button type="button" onclick="selectReportType('security')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
-                  <div class="text-2xl mb-2">🚨</div>
-                  <div class="font-medium text-sm">Security Concern</div>
-                </button>
-                <button type="button" onclick="selectReportType('accessibility')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
-                  <div class="text-2xl mb-2">♿</div>
-                  <div class="font-medium text-sm">Accessibility Issue</div>
-                </button>
-                <button type="button" onclick="selectReportType('other')" class="report-type-btn p-4 border-2 rounded-lg text-left transition-all border-gray-200 hover:border-gray-300">
-                  <div class="text-2xl mb-2">📝</div>
-                  <div class="font-medium text-sm">Other</div>
-                </button>
-              </div>
-            </div>
-
-            <!-- Description -->
-            <div>
-              <label for="reportDescription" class="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                id="reportDescription"
-                placeholder="Please provide details about the issue..."
-                rows="4"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              ></textarea>
-            </div>
-
-            <!-- Location -->
-            <div>
-              <label for="reportLocation" class="block text-sm font-medium text-gray-700 mb-2">
-                Specific Location
-              </label>
               <input
-                id="reportLocation"
                 type="text"
-                placeholder="e.g., Near main library entrance, Building A Room 101..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                id="searchInput"
+                placeholder="Search buildings, departments, or services..."
+                class="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                style="--tw-ring-color: var(--afit-primary);"
               />
-              <p class="mt-1 text-sm text-gray-500">
-                Leave blank to use your current location
-              </p>
+              <div id="searchResults" class="search-results hidden"></div>
             </div>
 
-            <!-- Submit Button -->
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-medium">
+            <!-- Map Controls -->
+            <div class="flex space-x-2">
+              <button id="radiusToggle" onclick="toggleRadiusRings()" class="px-4 py-2 text-white rounded-lg" style="background-color: var(--afit-primary);">
+                Toggle Rings
+              </button>
+              <button id="satelliteToggle" onclick="toggleMapType()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Satellite
+              </button>
+              <button onclick="centerOnCampus()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                Center
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3D Map -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+          <div id="campusMap" style="width: 100%; height: 600px;"></div>
+        </div>
+
+        <!-- Map Legend -->
+        <div class="mt-6 bg-white rounded-xl shadow-lg p-6">
+          <h4 class="font-semibold mb-4" style="color: var(--afit-primary);">Map Legend</h4>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="flex items-center space-x-2">
+              <div class="w-4 h-4 rounded-full bg-green-500"></div>
+              <span class="text-sm">500m Radius</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-4 h-4 rounded-full bg-yellow-500"></div>
+              <span class="text-sm">1000m Radius</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-4 h-4 rounded-full bg-red-500"></div>
+              <span class="text-sm">1500m Radius</span>
+            </div>
+            <div class="flex items-center space-x-2">
+              <div class="w-4 h-4 rounded-full bg-purple-500"></div>
+              <span class="text-sm">2000m Radius</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buildings Tab -->
+      <div id="buildingsContent" class="tab-content hidden">
+        <!-- Filter Controls -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div class="flex flex-wrap gap-4">
+            <select id="buildingTypeFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+              <option value="">All Types</option>
+              <option value="academic">Academic</option>
+              <option value="residential">Residential</option>
+              <option value="administrative">Administrative</option>
+              <option value="recreational">Recreational</option>
+              <option value="service">Service</option>
+            </select>
+            <input type="text" id="buildingSearch" placeholder="Search buildings..." class="px-4 py-2 border border-gray-300 rounded-lg flex-1">
+          </div>
+        </div>
+
+        <!-- Buildings Grid -->
+        <div id="buildingsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Building cards will be populated here -->
+        </div>
+      </div>
+
+      <!-- Events Tab -->
+      <div id="eventsContent" class="tab-content hidden">
+        <!-- Event Controls -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex space-x-4">
+              <input type="date" id="eventDateFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+              <select id="eventTypeFilter" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="">All Events</option>
+                <option value="academic">Academic</option>
+                <option value="social">Social</option>
+                <option value="sports">Sports</option>
+                <option value="administrative">Administrative</option>
+              </select>
+            </div>
+            <button onclick="showCreateEvent()" class="px-4 py-2 text-white rounded-lg admin-only hidden" style="background-color: var(--afit-primary);">
+              Create Event
+            </button>
+          </div>
+        </div>
+
+        <!-- Events List -->
+        <div id="eventsList" class="space-y-4">
+          <!-- Events will be populated here -->
+        </div>
+      </div>
+
+      <!-- Safety Tab -->
+      <div id="safetyContent" class="tab-content hidden">
+        <!-- Active Alerts -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Active Safety Alerts</h3>
+          <div id="activeAlerts" class="space-y-4">
+            <!-- Alerts will be populated here -->
+          </div>
+        </div>
+
+        <!-- Report Incident -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Report an Incident</h3>
+          <form id="incidentForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Incident Type</label>
+                <select id="incidentType" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="">Select type...</option>
+                  <option value="safety">Safety Hazard</option>
+                  <option value="security">Security Concern</option>
+                  <option value="maintenance">Maintenance Issue</option>
+                  <option value="medical">Medical Emergency</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <select id="incidentLocation" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                  <option value="">Select location...</option>
+                  <!-- Options will be populated from buildings data -->
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea id="incidentDescription" required rows="3" placeholder="Please provide details about the incident..." class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+            </div>
+            <button type="submit" class="w-full text-white py-2 rounded-md font-medium" style="background-color: var(--afit-primary);">
               Submit Report
             </button>
           </form>
+        </div>
 
-          <!-- Reward Info -->
-          <div class="mt-6 p-4 bg-green-50 rounded-lg">
-            <div class="flex items-center space-x-2">
-              <div class="bg-green-500 rounded-full p-1">
-                <span class="text-white text-xs">+20</span>
+        <!-- Safety Tips -->
+        <div class="bg-blue-50 rounded-xl p-6">
+          <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Safety Tips</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-start space-x-3">
+              <div class="rounded-full p-2" style="background-color: rgba(0,51,102,0.2);">
+                <span>🛡️</span>
               </div>
-              <span class="text-green-800 font-medium text-sm">
-                Earn 20 points for each verified report to help improve campus safety!
-              </span>
+              <div>
+                <h4 class="font-medium" style="color: var(--afit-primary);">Stay Alert</h4>
+                <p class="text-sm text-gray-700">Always be aware of your surroundings while on campus.</p>
+              </div>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="rounded-full p-2" style="background-color: rgba(0,51,102,0.2);">
+                <span>📱</span>
+              </div>
+              <div>
+                <h4 class="font-medium" style="color: var(--afit-primary);">Emergency Contacts</h4>
+                <p class="text-sm text-gray-700">Save campus security: +234-XXX-XXXX</p>
+              </div>
             </div>
           </div>
         </div>
@@ -534,65 +690,50 @@
       <!-- Admin Tab -->
       <div id="adminContent" class="tab-content hidden">
         <div class="space-y-6">
-          <!-- Register New User -->
-          <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold mb-4">Register New User</h3>
-            <form id="adminRegisterForm" class="space-y-4">
-              <input
-                type="email"
-                id="adminUserEmail"
-                placeholder="Email"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              />
-              <input
-                type="password"
-                id="adminUserPassword"
-                placeholder="Password"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              />
-              <select id="adminUserRole" required class="w-full p-2 border rounded-md">
-                <option value="">Select Role</option>
-                <option value="student">Student</option>
-                <option value="staff">Staff</option>
-              </select>
-              <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
-                Register User
-              </button>
-            </form>
-          </div>
-
-          <!-- Create Alert -->
-          <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold mb-4">Create Safety Alert</h3>
-            <form id="adminAlertForm" class="space-y-4">
-              <input
-                type="text"
-                id="adminAlertMessage"
-                placeholder="Alert message (e.g., Security issue near library)"
-                required
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-              />
-              <button type="submit" class="w-full bg-orange-600 text-white py-2 rounded-md hover:bg-orange-700">
-                Send Alert
-              </button>
-            </form>
-          </div>
-
-          <!-- Registered Users -->
-          <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold mb-4">Registered Users</h3>
-            <div id="usersList" class="space-y-2">
-              <!-- Users will be populated here -->
+          <!-- Admin Stats -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+              <h4 class="font-medium text-gray-600">Total Users</h4>
+              <p class="text-2xl font-bold" style="color: var(--afit-primary);" id="totalUsers">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+              <h4 class="font-medium text-gray-600">Active Events</h4>
+              <p class="text-2xl font-bold" style="color: var(--afit-primary);" id="totalEvents">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+              <h4 class="font-medium text-gray-600">Open Incidents</h4>
+              <p class="text-2xl font-bold text-red-600" id="totalIncidents">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-lg p-6">
+              <h4 class="font-medium text-gray-600">System Status</h4>
+              <p class="text-2xl font-bold text-green-600">Online</p>
             </div>
           </div>
 
-          <!-- Moderate Reports -->
+          <!-- Admin Actions -->
           <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold mb-4">Moderate Reports</h3>
-            <div id="reportsList" class="space-y-2">
-              <!-- Reports will be populated here -->
+            <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">Quick Actions</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <button onclick="showUserManagement()" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+                <h4 class="font-medium">User Management</h4>
+                <p class="text-sm text-gray-600">Manage user accounts and roles</p>
+              </button>
+              <button onclick="showEventManagement()" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+                <h4 class="font-medium">Event Management</h4>
+                <p class="text-sm text-gray-600">Create and manage campus events</p>
+              </button>
+              <button onclick="showSystemSettings()" class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left">
+                <h4 class="font-medium">System Settings</h4>
+                <p class="text-sm text-gray-600">Configure system parameters</p>
+              </button>
+            </div>
+          </div>
+
+          <!-- Recent Activity -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold mb-4" style="color: var(--afit-primary);">System Activity</h3>
+            <div id="adminActivity" class="space-y-3">
+              <!-- Admin activity will be populated here -->
             </div>
           </div>
         </div>
@@ -600,903 +741,58 @@
     </main>
   </div>
 
-  <script>
-    // Firebase configuration - Updated with your actual project credentials
-    const firebaseConfig = {
-      apiKey: "AIzaSyDP-nikiUzj3P-Ss7HOoeQeb_AJa7U2MMg",
-      authDomain: "camp-642be.firebaseapp.com",
-      projectId: "camp-642be",
-      storageBucket: "camp-642be.firebasestorage.app",
-      messagingSenderId: "205587009075",
-      appId: "1:205587009075:web:aedcdb038df20d4f605d46",
-      measurementId: "G-Y6JQYFKV5Z"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    // App state
-    let currentUser = null;
-    let map = null;
-    let alerts = [];
-    let reports = [];
-    let points = 0;
-    let badges = [];
-    let destination = null;
-    let selectedReportType = '';
-    let currentTab = 'map';
-    let directionsService = null;
-    let directionsRenderer = null;
-
-    // Campus locations (Google Maps coordinates)
-    const locations = {
-      'Main Library': { lat: 37.422, lng: -122.084 },
-      'Science Building': { lat: 37.423, lng: -122.085 },
-      'Student Center': { lat: 37.421, lng: -122.083 },
-      'Cafeteria': { lat: 37.420, lng: -122.082 },
-      'Parking Lot A': { lat: 37.424, lng: -122.086 },
-      'Gym': { lat: 37.419, lng: -122.081 },
-      'Admin Building': { lat: 37.425, lng: -122.087 }
-    };
-
-    // Building data for indoor navigation
-    const buildings = {
-      'science': {
-        name: 'Science Building',
-        floors: [
-          {
-            id: 'floor1',
-            name: 'Floor 1',
-            rooms: [
-              { id: 'room101', name: 'Room 101', type: 'classroom', coordinates: { x: 50, y: 100 } },
-              { id: 'room102', name: 'Room 102', type: 'lab', coordinates: { x: 150, y: 100 } },
-              { id: 'restroom1', name: 'Restroom', type: 'restroom', coordinates: { x: 250, y: 50 } }
-            ]
-          },
-          {
-            id: 'floor2',
-            name: 'Floor 2',
-            rooms: [
-              { id: 'room201', name: 'Room 201', type: 'classroom', coordinates: { x: 50, y: 100 } },
-              { id: 'room202', name: 'Professor Office', type: 'office', coordinates: { x: 150, y: 100 } }
-            ]
-          }
-        ]
-      },
-      'library': {
-        name: 'Main Library',
-        floors: [
-          {
-            id: 'floor1',
-            name: 'Ground Floor',
-            rooms: [
-              { id: 'entrance', name: 'Main Entrance', type: 'other', coordinates: { x: 100, y: 200 } },
-              { id: 'circulation', name: 'Circulation Desk', type: 'other', coordinates: { x: 100, y: 150 } },
-              { id: 'study1', name: 'Study Area 1', type: 'other', coordinates: { x: 200, y: 100 } }
-            ]
-          }
-        ]
-      }
-    };
-
-    // Initialize Google Maps
-    function initMap() {
-      // Default center (campus center)
-      const campusCenter = { lat: 37.422, lng: -122.084 };
-      
-      map = new google.maps.Map(document.getElementById('map'), {
-        zoom: 15,
-        center: campusCenter,
-        mapTypeId: 'roadmap'
-      });
-
-      // Initialize directions service and renderer
-      directionsService = new google.maps.DirectionsService();
-      directionsRenderer = new google.maps.DirectionsRenderer();
-      directionsRenderer.setMap(map);
-
-      // Add markers for campus locations
-      Object.entries(locations).forEach(([name, coords]) => {
-        const marker = new google.maps.Marker({
-          position: coords,
-          map: map,
-          title: name,
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#3B82F6">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(30, 30),
-            anchor: new google.maps.Point(15, 30)
-          }
-        });
-
-        marker.addListener('click', () => {
-          handleLocationSelect(name, coords);
-        });
-      });
-
-      // Add safety alert markers
-      addSafetyMarkers();
-    }
-
-    // Add safety markers to map
-    function addSafetyMarkers() {
-      // Sample safety alert locations
-      const safetyAlerts = [
-        { lat: 37.4225, lng: -122.0845, type: 'alert', message: 'Construction zone' },
-        { lat: 37.4215, lng: -122.0835, type: 'incident', message: 'Reported incident' }
-      ];
-
-      safetyAlerts.forEach(alert => {
-        const marker = new google.maps.Marker({
-          position: { lat: alert.lat, lng: alert.lng },
-          map: map,
-          title: alert.message,
-          icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="${alert.type === 'alert' ? '#F59E0B' : '#DC2626'}">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-            `),
-            scaledSize: new google.maps.Size(24, 24),
-            anchor: new google.maps.Point(12, 12)
-          }
-        });
-      });
-    }
-
-    // Handle location selection
-    function handleLocationSelect(name, coords) {
-      destination = coords;
-      updatePoints(10);
-      
-      // Center map on selected location
-      map.setCenter(coords);
-      map.setZoom(17);
-      
-      // Show directions
-      document.getElementById('directionsContainer').classList.remove('hidden');
-      document.getElementById('directionsContent').innerHTML = `
-        <p><strong>Destination:</strong> ${name}</p>
-        <p><strong>Directions:</strong> Click "Get Directions" to see route</p>
-        <button onclick="getDirections()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-          Get Directions
-        </button>
-        <div class="mt-2 p-2 bg-blue-50 rounded">
-          <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
+  <!-- Building Detail Modal -->
+  <div id="buildingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-90vh overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-4">
+          <h2 id="buildingModalTitle" class="text-2xl font-bold" style="color: var(--afit-primary);"></h2>
+          <button onclick="closeBuildingModal()" class="text-gray-400 hover:text-gray-600">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
-      `;
-    }
-
-    // Get directions using Google Maps Directions API
-    function getDirections() {
-      if (!destination) return;
-
-      // Get user's current location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition((position) => {
-          const origin = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-
-          const request = {
-            origin: origin,
-            destination: destination,
-            travelMode: google.maps.TravelMode.WALKING
-          };
-
-          directionsService.route(request, (result, status) => {
-            if (status === 'OK') {
-              directionsRenderer.setDirections(result);
-              
-              const route = result.routes[0];
-              const leg = route.legs[0];
-              
-              document.getElementById('directionsContent').innerHTML = `
-                <p><strong>Walking Directions:</strong></p>
-                <p>Distance: ${leg.distance.text}</p>
-                <p>Duration: ${leg.duration.text}</p>
-                <div class="mt-4 space-y-2">
-                  ${leg.steps.map((step, index) => `
-                    <div class="flex items-start space-x-2">
-                      <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${index + 1}</span>
-                      <p class="text-sm">${step.instructions.replace(/<[^>]*>/g, '')}</p>
-                    </div>
-                  `).join('')}
-                </div>
-                <div class="mt-2 p-2 bg-blue-50 rounded">
-                  <p class="text-blue-800 text-sm">🎉 You earned 10 points for exploring!</p>
-                </div>
-              `;
-            } else {
-              alert('Could not get directions: ' + status);
-            }
-          });
-        }, (error) => {
-          alert('Could not get your location: ' + error.message);
-        });
-      } else {
-        alert('Geolocation is not supported by this browser.');
-      }
-    }
-
-    // Initialize fade-in animations
-    document.addEventListener('DOMContentLoaded', function() {
-      const fadeElements = document.querySelectorAll('.fade-in');
-      
-      const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        });
-      });
-      
-      fadeElements.forEach(el => observer.observe(el));
-
-      // Set up event listeners
-      setupEventListeners();
-    });
-
-    // Setup event listeners
-    function setupEventListeners() {
-      // Login form
-      document.getElementById('loginForm').addEventListener('submit', handleLogin);
-      
-      // Signup form
-      document.getElementById('signupForm').addEventListener('submit', handleSignup);
-      
-      // Report form
-      document.getElementById('reportForm').addEventListener('submit', handleReportSubmit);
-      
-      // Admin forms
-      document.getElementById('adminRegisterForm').addEventListener('submit', handleAdminRegister);
-      document.getElementById('adminAlertForm').addEventListener('submit', handleAdminAlert);
-
-      // Indoor navigation
-      document.getElementById('buildingSelect').addEventListener('change', handleBuildingSelect);
-      document.getElementById('floorSelect').addEventListener('change', handleFloorSelect);
-      document.getElementById('roomSelect').addEventListener('change', handleRoomSelect);
-    }
-
-    // Modal functions
-    function showLogin() {
-      hideModals();
-      document.getElementById('loginModal').classList.remove('hidden');
-      document.getElementById('loginModal').classList.add('flex');
-    }
-
-    function showSignup() {
-      hideModals();
-      document.getElementById('signupModal').classList.remove('hidden');
-      document.getElementById('signupModal').classList.add('flex');
-    }
-
-    function hideModals() {
-      document.getElementById('loginModal').classList.add('hidden');
-      document.getElementById('loginModal').classList.remove('flex');
-      document.getElementById('signupModal').classList.add('hidden');
-      document.getElementById('signupModal').classList.remove('flex');
-    }
-
-    // Authentication functions
-    async function handleLogin(e) {
-      e.preventDefault();
-      const email = document.getElementById('loginEmail').value;
-      const password = document.getElementById('loginPassword').value;
-      
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-      } catch (error) {
-        alert('Login failed: ' + error.message);
-      }
-    }
-
-    async function handleSignup(e) {
-      e.preventDefault();
-      const name = document.getElementById('signupName').value;
-      const email = document.getElementById('signupEmail').value;
-      const password = document.getElementById('signupPassword').value;
-      const role = document.getElementById('signupRole').value;
-      
-      try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
         
-        // Save user data to Firestore
-        await db.collection('users').doc(user.uid).set({
-          name: name,
-          email: email,
-          role: role,
-          points: 0,
-          badges: [],
-          createdAt: new Date().toISOString()
-        });
+        <!-- Building Images -->
+        <div id="buildingImages" class="swiper-container mb-6">
+          <!-- Images will be populated here -->
+        </div>
         
-        alert('Account created successfully!');
-      } catch (error) {
-        alert('Signup failed: ' + error.message);
-      }
-    }
-
-    // Auth state observer
-    auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        try {
-          const userDoc = await db.collection('users').doc(user.uid).get();
-          if (userDoc.exists) {
-            currentUser = {
-              uid: user.uid,
-              ...userDoc.data()
-            };
-            showApp();
-          }
-        } catch (error) {
-          console.error('Error getting user data:', error);
-        }
-      } else {
-        currentUser = null;
-        showLanding();
-      }
-    });
-
-    // App functions
-    function showApp() {
-      hideModals();
-      document.getElementById('landingPage').classList.add('hidden');
-      document.getElementById('campusApp').classList.remove('hidden');
-      
-      // Update user info
-      document.getElementById('userInfo').textContent = `Welcome, ${currentUser.name} (${currentUser.role})`;
-      document.getElementById('pointsDisplay').textContent = `${currentUser.points || 0} points`;
-      
-      // Show admin tab if user is admin
-      if (currentUser.role === 'admin') {
-        document.getElementById('adminTab').classList.remove('hidden');
-      }
-      
-      // Initialize map
-      if (typeof google !== 'undefined' && google.maps) {
-        initMap();
-      }
-      
-      // Load user data
-      points = currentUser.points || 0;
-      badges = currentUser.badges || [];
-      
-      // Load alerts and reports
-      loadAlerts();
-      loadReports();
-    }
-
-    function showLanding() {
-      document.getElementById('campusApp').classList.add('hidden');
-      document.getElementById('landingPage').classList.remove('hidden');
-      
-      // Reset app state
-      if (map) {
-        // Google Maps does not have a remove method, but we can clear markers and directions
-        directionsRenderer.setMap(null);
-        map = null;
-      }
-      alerts = [];
-      reports = [];
-      points = 0;
-      badges = [];
-    }
-
-    function logout() {
-      auth.signOut();
-    }
-
-    // Tab navigation
-    function showTab(tabName) {
-      // Hide all tab content
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.add('hidden');
-      });
-      
-      // Remove active class from all tabs
-      document.querySelectorAll('[id$="Tab"]').forEach(tab => {
-        tab.classList.remove('border-blue-500', 'text-blue-600');
-        tab.classList.add('border-transparent', 'text-gray-500');
-      });
-      
-      // Show selected tab content
-      document.getElementById(tabName + 'Content').classList.remove('hidden');
-      
-      // Add active class to selected tab
-      const activeTab = document.getElementById(tabName + 'Tab');
-      activeTab.classList.add('border-blue-500', 'text-blue-600');
-      activeTab.classList.remove('border-transparent', 'text-gray-500');
-      
-      currentTab = tabName;
-    }
-
-    // Map functions
-    function handleSearch() {
-      const query = document.getElementById('searchInput').value;
-      const location = locations[query];
-      
-      if (location) {
-        handleLocationSelect(query, location);
-      } else {
-        alert('Location not found!');
-      }
-    }
-
-    // Indoor navigation functions
-    function handleBuildingSelect() {
-      const buildingId = document.getElementById('buildingSelect').value;
-      const floorSelection = document.getElementById('floorSelection');
-      const floorSelect = document.getElementById('floorSelect');
-      
-      if (buildingId && buildings[buildingId]) {
-        const building = buildings[buildingId];
-        floorSelect.innerHTML = '<option value="">Choose a floor...</option>';
-        
-        building.floors.forEach(floor => {
-          const option = document.createElement('option');
-          option.value = floor.id;
-          option.textContent = floor.name;
-          floorSelect.appendChild(option);
-        });
-        
-        floorSelection.classList.remove('hidden');
-      } else {
-        floorSelection.classList.add('hidden');
-        document.getElementById('roomSelection').classList.add('hidden');
-        document.getElementById('floorPlan').classList.add('hidden');
-      }
-    }
-
-    function handleFloorSelect() {
-      const buildingId = document.getElementById('buildingSelect').value;
-      const floorId = document.getElementById('floorSelect').value;
-      const roomSelection = document.getElementById('roomSelection');
-      const roomSelect = document.getElementById('roomSelect');
-      
-      if (buildingId && floorId && buildings[buildingId]) {
-        const floor = buildings[buildingId].floors.find(f => f.id === floorId);
-        if (floor) {
-          roomSelect.innerHTML = '<option value="">Choose a room...</option>';
-          
-          floor.rooms.forEach(room => {
-            const option = document.createElement('option');
-            option.value = room.id;
-            option.textContent = `${getRoomIcon(room.type)} ${room.name}`;
-            roomSelect.appendChild(option);
-          });
-          
-          roomSelection.classList.remove('hidden');
-          renderFloorPlan(floor);
-        }
-      } else {
-        roomSelection.classList.add('hidden');
-        document.getElementById('floorPlan').classList.add('hidden');
-      }
-    }
-
-    function handleRoomSelect() {
-      const roomId = document.getElementById('roomSelect').value;
-      // Highlight selected room on floor plan
-      document.querySelectorAll('.room-marker').forEach(marker => {
-        marker.classList.remove('bg-blue-500', 'text-white', 'border-blue-600');
-        marker.classList.add('bg-white', 'border-gray-300');
-      });
-      
-      if (roomId) {
-        const roomMarker = document.querySelector(`[data-room-id="${roomId}"]`);
-        if (roomMarker) {
-          roomMarker.classList.add('bg-blue-500', 'text-white', 'border-blue-600');
-          roomMarker.classList.remove('bg-white', 'border-gray-300');
-        }
-      }
-    }
-
-    function getRoomIcon(type) {
-      const icons = {
-        classroom: '🏫',
-        office: '🏢',
-        restroom: '🚻',
-        lab: '🔬',
-        other: '📍'
-      };
-      return icons[type] || '📍';
-    }
-
-    function renderFloorPlan(floor) {
-      const container = document.getElementById('floorPlanContainer');
-      container.innerHTML = '';
-      
-      floor.rooms.forEach(room => {
-        const roomDiv = document.createElement('div');
-        roomDiv.className = 'room-marker absolute w-16 h-12 border-2 rounded flex items-center justify-center text-xs font-medium cursor-pointer transition-all bg-white border-gray-300 hover:border-blue-400';
-        roomDiv.style.left = room.coordinates.x + 'px';
-        roomDiv.style.top = room.coordinates.y + 'px';
-        roomDiv.setAttribute('data-room-id', room.id);
-        roomDiv.title = room.name;
-        roomDiv.innerHTML = `<span>${getRoomIcon(room.type)}</span>`;
-        roomDiv.onclick = () => {
-          document.getElementById('roomSelect').value = room.id;
-          handleRoomSelect();
-        };
-        container.appendChild(roomDiv);
-      });
-      
-      document.getElementById('floorPlan').classList.remove('hidden');
-    }
-
-    // Multi-modal routing functions
-    function generateRoutes() {
-      const from = document.getElementById('fromLocation').value;
-      const to = document.getElementById('toLocation').value;
-      
-      if (!from || !to) {
-        alert('Please select both from and to locations');
-        return;
-      }
-      
-      const routes = [
-        {
-          mode: 'walking',
-          duration: '8 min',
-          distance: '0.6 miles',
-          crowdLevel: 'low',
-          icon: '🚶'
-        },
-        {
-          mode: 'biking',
-          duration: '3 min',
-          distance: '0.6 miles',
-          crowdLevel: 'low',
-          icon: '🚴'
-        },
-        {
-          mode: 'driving',
-          duration: '5 min',
-          distance: '0.8 miles',
-          cost: 'Parking: $2/hr',
-          crowdLevel: 'medium',
-          icon: '🚗'
-        },
-        {
-          mode: 'shuttle',
-          duration: '12 min',
-          distance: '1.2 miles',
-          cost: 'Free',
-          crowdLevel: 'high',
-          icon: '🚌'
-        }
-      ];
-      
-      const routesList = document.getElementById('routesList');
-      routesList.innerHTML = '';
-      
-      routes.forEach((route, index) => {
-        const routeDiv = document.createElement('div');
-        routeDiv.className = 'border rounded-lg p-4 cursor-pointer transition-all border-gray-200 hover:border-gray-300';
-        routeDiv.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="text-2xl">${route.icon}</span>
-              <div>
-                <p class="font-medium capitalize">${route.mode}</p>
-                <div class="flex items-center space-x-2 text-sm text-gray-600">
-                  <span>⏱️ ${route.duration}</span>
-                  <span>📍 ${route.distance}</span>
-                </div>
-              </div>
-            </div>
+        <!-- Building Info -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="font-semibold mb-2" style="color: var(--afit-primary);">Description</h3>
+            <p id="buildingDescription" class="text-gray-600 mb-4"></p>
             
-            <div class="text-right">
-              ${route.cost ? `<p class="text-sm text-gray-600">${route.cost}</p>` : ''}
-              <p class="text-sm font-medium ${getCrowdColor(route.crowdLevel)}">
-                ${route.crowdLevel} traffic
-              </p>
-            </div>
+            <h3 class="font-semibold mb-2" style="color: var(--afit-primary);">Facilities</h3>
+            <ul id="buildingFacilities" class="text-gray-600 space-y-1"></ul>
           </div>
-        `;
-        routesList.appendChild(routeDiv);
-      });
-      
-      document.getElementById('routeOptions').classList.remove('hidden');
-      document.getElementById('trafficInfo').classList.remove('hidden');
-    }
-
-    function getCrowdColor(level) {
-      const colors = {
-        low: 'text-green-600',
-        medium: 'text-yellow-600',
-        high: 'text-red-600'
-      };
-      return colors[level] || 'text-gray-600';
-    }
-
-    // Report functions
-    function selectReportType(type) {
-      selectedReportType = type;
-      
-      // Update button styles
-      document.querySelectorAll('.report-type-btn').forEach(btn => {
-        btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-900');
-        btn.classList.add('border-gray-200');
-      });
-      
-      event.target.closest('.report-type-btn').classList.add('border-blue-500', 'bg-blue-50', 'text-blue-900');
-      event.target.closest('.report-type-btn').classList.remove('border-gray-200');
-    }
-
-    async function handleReportSubmit(e) {
-      e.preventDefault();
-      
-      if (!selectedReportType) {
-        alert('Please select a report type');
-        return;
-      }
-      
-      const description = document.getElementById('reportDescription').value;
-      const location = document.getElementById('reportLocation').value;
-      
-      const report = {
-        type: selectedReportType,
-        description: description,
-        location: location || 'Current Location',
-        timestamp: new Date().toISOString(),
-        status: 'pending',
-        reporterId: currentUser.uid,
-        reporterName: currentUser.name
-      };
-      
-      try {
-        await db.collection('reports').add(report);
-        
-        // Award points
-        if (currentUser.role !== 'admin') {
-          updatePoints(20);
-        }
-        
-        // Reset form
-        document.getElementById('reportForm').reset();
-        selectedReportType = '';
-        document.querySelectorAll('.report-type-btn').forEach(btn => {
-          btn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-900');
-          btn.classList.add('border-gray-200');
-        });
-        
-        alert('Thank you! Your report has been submitted and you earned 20 points!');
-        loadReports();
-      } catch (error) {
-        alert('Error submitting report: ' + error.message);
-      }
-    }
-
-    // Admin functions
-    async function handleAdminRegister(e) {
-      e.preventDefault();
-      
-      if (currentUser.role !== 'admin') {
-        alert('Access denied');
-        return;
-      }
-      
-      const email = document.getElementById('adminUserEmail').value;
-      const password = document.getElementById('adminUserPassword').value;
-      const role = document.getElementById('adminUserRole').value;
-      
-      try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        
-        await db.collection('users').doc(user.uid).set({
-          email: email,
-          role: role,
-          points: 0,
-          badges: [],
-          createdAt: new Date().toISOString(),
-          registeredBy: currentUser.uid
-        });
-        
-        document.getElementById('adminRegisterForm').reset();
-        alert('User registered successfully!');
-        loadUsers();
-      } catch (error) {
-        alert('Registration failed: ' + error.message);
-      }
-    }
-
-    async function handleAdminAlert(e) {
-      e.preventDefault();
-      
-      if (currentUser.role !== 'admin') {
-        alert('Access denied');
-        return;
-      }
-      
-      const message = document.getElementById('adminAlertMessage').value;
-      
-      const alert = {
-        message: message,
-        timestamp: new Date().toISOString(),
-        createdBy: currentUser.uid,
-        active: true
-      };
-      
-      try {
-        await db.collection('alerts').add(alert);
-        document.getElementById('adminAlertForm').reset();
-        alert('Alert sent successfully!');
-        loadAlerts();
-      } catch (error) {
-        alert('Error sending alert: ' + error.message);
-      }
-    }
-
-    // Data loading functions
-    async function loadAlerts() {
-      try {
-        const snapshot = await db.collection('alerts').where('active', '==', true).orderBy('timestamp', 'desc').get();
-        alerts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        displayAlerts();
-      } catch (error) {
-        console.error('Error loading alerts:', error);
-      }
-    }
-
-    async function loadReports() {
-      try {
-        const snapshot = await db.collection('reports').orderBy('timestamp', 'desc').get();
-        reports = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (currentUser.role === 'admin') {
-          displayReportsForAdmin();
-        }
-      } catch (error) {
-        console.error('Error loading reports:', error);
-      }
-    }
-
-    async function loadUsers() {
-      if (currentUser.role !== 'admin') return;
-      
-      try {
-        const snapshot = await db.collection('users').orderBy('createdAt', 'desc').get();
-        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        displayUsers(users);
-      } catch (error) {
-        console.error('Error loading users:', error);
-      }
-    }
-
-    // Display functions
-    function displayAlerts() {
-      const activeAlerts = document.getElementById('activeAlerts');
-      if (!activeAlerts) return;
-      
-      if (alerts.length === 0) {
-        activeAlerts.innerHTML = '<p class="text-gray-500">No active alerts</p>';
-        return;
-      }
-      
-      activeAlerts.innerHTML = alerts.map(alert => `
-        <div class="border-l-4 p-4 rounded-lg bg-yellow-100 border-yellow-500 text-yellow-800">
-          <div class="flex items-start space-x-3">
-            <span class="text-2xl">⚠️</span>
-            <div class="flex-1">
-              <h4 class="font-semibold">${alert.message}</h4>
-              <p class="text-sm opacity-75">${new Date(alert.timestamp).toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function displayReportsForAdmin() {
-      const reportsList = document.getElementById('reportsList');
-      if (!reportsList) return;
-      
-      if (reports.length === 0) {
-        reportsList.innerHTML = '<p class="text-gray-500">No reports</p>';
-        return;
-      }
-      
-      reportsList.innerHTML = reports.map(report => `
-        <div class="flex items-center justify-between p-3 border rounded">
+          
           <div>
-            <p class="font-medium">${report.description}</p>
-            <p class="text-sm text-gray-600">
-              ${report.type} • ${report.location} • ${new Date(report.timestamp).toLocaleDateString()}
-            </p>
-            <p class="text-xs text-gray-500">By: ${report.reporterName}</p>
-          </div>
-          <div class="flex space-x-2">
-            <span class="px-2 py-1 rounded text-xs ${
-              report.status === 'approved' ? 'bg-green-100 text-green-800' :
-              report.status === 'rejected' ? 'bg-red-100 text-red-800' :
-              'bg-yellow-100 text-yellow-800'
-            }">
-              ${report.status}
-            </span>
-            ${report.status === 'pending' ? `
-              <button onclick="moderateReport('${report.id}', 'approve')" class="px-2 py-1 bg-green-500 text-white rounded text-xs">
-                Approve
-              </button>
-              <button onclick="moderateReport('${report.id}', 'reject')" class="px-2 py-1 bg-red-500 text-white rounded text-xs">
-                Reject
-              </button>
-            ` : ''}
+            <h3 class="font-semibold mb-2" style="color: var(--afit-primary);">Details</h3>
+            <div id="buildingDetails" class="space-y-2"></div>
+            
+            <h3 class="font-semibold mb-2 mt-4" style="color: var(--afit-primary);">Upcoming Events</h3>
+            <div id="buildingEvents" class="space-y-2"></div>
           </div>
         </div>
-      `).join('');
-    }
+      </div>
+    </div>
+  </div>
 
-    function displayUsers(users) {
-      const usersList = document.getElementById('usersList');
-      if (!usersList) return;
-      
-      if (users.length === 0) {
-        usersList.innerHTML = '<p class="text-gray-500">No users</p>';
-        return;
-      }
-      
-      usersList.innerHTML = users.map(user => `
-        <div class="flex justify-between items-center p-3 border rounded">
-          <div>
-            <p class="font-medium">${user.email}</p>
-            <p class="text-sm text-gray-600">
-              ${user.role} • ${user.points || 0} points
-            </p>
-          </div>
-          <span class="text-xs text-gray-500">
-            ${new Date(user.createdAt).toLocaleDateString()}
-          </span>
-        </div>
-      `).join('');
-    }
+  <!-- Loading Spinner -->
+  <div id="loadingSpinner" class="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50 hidden">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-16 w-16 border-b-2 mx-auto mb-4" style="border-color: var(--afit-primary);"></div>
+      <p class="text-gray-600">Loading...</p>
+    </div>
+  </div>
 
-    // Utility functions
-    async function updatePoints(newPoints) {
-      if (currentUser.role === 'admin') return;
-      
-      points += newPoints;
-      document.getElementById('pointsDisplay').textContent = `${points} points`;
-      
-      try {
-        await db.collection('users').doc(currentUser.uid).update({
-          points: points
-        });
-        currentUser.points = points;
-      } catch (error) {
-        console.error('Error updating points:', error);
-      }
-    }
-
-    async function moderateReport(reportId, action) {
-      if (currentUser.role !== 'admin') return;
-      
-      try {
-        if (action === 'approve') {
-          await db.collection('reports').doc(reportId).update({
-            status: 'approved'
-          });
-        } else {
-          await db.collection('reports').doc(reportId).update({
-            status: 'rejected'
-          });
-        }
-        
-        loadReports();
-      } catch (error) {
-        alert('Error moderating report: ' + error.message);
-      }
-    }
-
-    // Check if user is already logged in
-    // This will be handled by the auth state observer
-  </script>
+  <!-- Scripts -->
+  <script src="/src/firebase-config.js"></script>
+  <script src="/src/geofence-data.js"></script>
+  <script src="/src/campus-app.js"></script>
+  <script src="/src/service-worker-registration.js"></script>
 </body>
 </html>
