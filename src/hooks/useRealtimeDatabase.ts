@@ -1,64 +1,118 @@
 
 import { useState, useEffect } from 'react';
-import { 
-  ref, 
-  push, 
-  onValue, 
-  update,
-  remove,
-  serverTimestamp,
-  off,
-  set
-} from 'firebase/database';
+import { ref, push, onValue, off, update, serverTimestamp } from 'firebase/database';
 import { rtdb } from '../config/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Building, Event } from '../data/afitBuildings';
+import geofenceConfig from '../config/geofence.json';
 
-interface RealtimeUser {
-  uid: string;
-  email: string;
-  role: 'admin' | 'student' | 'staff';
-  name: string;
-  points?: number;
-  badges?: string[];
-  assignedBuildings?: string[];
-  isOnline: boolean;
+interface RealtimeData {
+  alerts: Alert[];
+  incidents: Incident[];
+  onlineUsers: OnlineUser[];
+  campusEvents: CampusEvent[];
+}
+
+interface Alert {
+  id: string;
+  message: string;
+  coords: [number, number];
+  timestamp: string;
+  type: 'safety' | 'emergency' | 'maintenance' | 'event';
+}
+
+interface Incident {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  coords: [number, number];
+  timestamp: string;
+  reportedBy: string;
+  status: 'reported' | 'investigating' | 'resolved';
+}
+
+interface OnlineUser {
+  id: string;
+  displayName: string;
   lastSeen: string;
+  location?: string;
+}
+
+interface CampusEvent {
+  id: string;
+  title: string;
+  description: string;
+  buildingId: string;
+  startTime: string;
+  endTime: string;
+  notificationLeadTime: number;
 }
 
 export const useRealtimeDatabase = () => {
-  const [onlineUsers, setOnlineUsers] = useState<RealtimeUser[]>([]);
-  const [realtimeEvents, setRealtimeEvents] = useState<Event[]>([]);
-  const [realtimeBuildings, setRealtimeBuildings] = useState<Building[]>([]);
+  const [data, setData] = useState<RealtimeData>({
+    alerts: [],
+    incidents: [],
+    onlineUsers: [],
+    campusEvents: []
+  });
   const { user } = useAuth();
 
-  // Track online users
   useEffect(() => {
-    const usersRef = ref(rtdb, 'onlineUsers');
-    
-    const unsubscribe = onValue(usersRef, (snapshot) => {
-      const usersData: RealtimeUser[] = [];
+    // Listen to alerts
+    const alertsRef = ref(rtdb, 'alerts');
+    const alertsUnsubscribe = onValue(alertsRef, (snapshot) => {
+      const alertsData: Alert[] = [];
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(key => {
-          usersData.push({
-            uid: key,
+          alertsData.push({
+            id: key,
             ...data[key]
           });
         });
       }
-      setOnlineUsers(usersData);
+      setData(prev => ({ ...prev, alerts: alertsData }));
     });
 
-    return () => off(usersRef, 'value', unsubscribe);
-  }, []);
+    // Listen to incidents
+    const incidentsRef = ref(rtdb, 'incidents');
+    const incidentsUnsubscribe = onValue(incidentsRef, (snapshot) => {
+      const incidentsData: Incident[] = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(key => {
+          incidentsData.push({
+            id: key,
+            ...data[key]
+          });
+        });
+      }
+      setData(prev => ({ ...prev, incidents: incidentsData }));
+    });
 
-  // Listen to real-time events
-  useEffect(() => {
+    // Listen to online users
+    const usersRef = ref(rtdb, 'users');
+    const usersUnsubscribe = onValue(usersRef, (snapshot) => {
+      const usersData: OnlineUser[] = [];
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        Object.keys(data).forEach(key => {
+          if (data[key].isOnline) {
+            usersData.push({
+              id: key,
+              displayName: data[key].displayName || 'Anonymous',
+              lastSeen: data[key].lastSeen || new Date().toISOString()
+            });
+          }
+        });
+      }
+      setData(prev => ({ ...prev, onlineUsers: usersData }));
+    });
+
+    // Listen to campus events
     const eventsRef = ref(rtdb, 'events');
-    
-    const unsubscribe = onValue(eventsRef, (snapshot) => {
-      const eventsData: Event[] = [];
+    const eventsUnsubscribe = onValue(eventsRef, (snapshot) => {
+      const eventsData: CampusEvent[] = [];
       if (snapshot.exists()) {
         const data = snapshot.val();
         Object.keys(data).forEach(key => {
@@ -68,88 +122,96 @@ export const useRealtimeDatabase = () => {
           });
         });
       }
-      setRealtimeEvents(eventsData);
+      setData(prev => ({ ...prev, campusEvents: eventsData }));
     });
 
-    return () => off(eventsRef, 'value', unsubscribe);
-  }, []);
-
-  // Set user online status
-  const setUserOnline = async () => {
+    // Set user as online when hook mounts
     if (user) {
-      const userStatusRef = ref(rtdb, `onlineUsers/${user.uid}`);
-      await set(userStatusRef, {
-        email: user.email,
-        role: user.role,
-        name: user.name,
+      const userStatusRef = ref(rtdb, `users/${user.uid}`);
+      update(userStatusRef, {
         isOnline: true,
-        lastSeen: serverTimestamp()
+        lastSeen: serverTimestamp(),
+        displayName: user.displayName || user.email
       });
     }
+
+    return () => {
+      // Cleanup listeners
+      off(alertsRef, 'value', alertsUnsubscribe);
+      off(incidentsRef, 'value', incidentsUnsubscribe);
+      off(usersRef, 'value', usersUnsubscribe);
+      off(eventsRef, 'value', eventsUnsubscribe);
+
+      // Set user as offline when hook unmounts
+      if (user) {
+        const userStatusRef = ref(rtdb, `users/${user.uid}`);
+        update(userStatusRef, {
+          isOnline: false,
+          lastSeen: serverTimestamp()
+        });
+      }
+    };
+  }, [user]);
+
+  const addAlert = async (alert: Omit<Alert, 'id' | 'timestamp'>) => {
+    const alertsRef = ref(rtdb, 'alerts');
+    await push(alertsRef, {
+      ...alert,
+      timestamp: new Date().toISOString(),
+      createdAt: serverTimestamp()
+    });
   };
 
-  // Set user offline status
-  const setUserOffline = async () => {
+  const addIncident = async (incident: Omit<Incident, 'id' | 'timestamp' | 'reportedBy' | 'status'>) => {
     if (user) {
-      const userStatusRef = ref(rtdb, `onlineUsers/${user.uid}`);
-      await update(userStatusRef, {
-        isOnline: false,
-        lastSeen: serverTimestamp()
+      const incidentsRef = ref(rtdb, 'incidents');
+      await push(incidentsRef, {
+        ...incident,
+        timestamp: new Date().toISOString(),
+        reportedBy: user.uid,
+        status: 'reported',
+        createdAt: serverTimestamp()
       });
     }
   };
 
-  // Add real-time event
-  const addRealtimeEvent = async (event: Omit<Event, 'id'>) => {
+  const addCampusEvent = async (event: Omit<CampusEvent, 'id'>) => {
     const eventsRef = ref(rtdb, 'events');
     await push(eventsRef, {
       ...event,
-      createdAt: serverTimestamp(),
-      createdBy: user?.uid
+      createdAt: serverTimestamp()
     });
   };
 
-  // Update real-time event
-  const updateRealtimeEvent = async (eventId: string, updates: Partial<Event>) => {
-    const eventRef = ref(rtdb, `events/${eventId}`);
-    await update(eventRef, {
-      ...updates,
-      updatedAt: serverTimestamp(),
-      updatedBy: user?.uid
-    });
+  // Helper function to get building name by coordinates
+  const getBuildingByCoords = (coords: [number, number]): string => {
+    const building = geofenceConfig.locations.find(loc => 
+      Math.abs(loc.lat - coords[0]) < 0.0001 && Math.abs(loc.lng - coords[1]) < 0.0001
+    );
+    return building ? building.name : 'Unknown Location';
   };
 
-  // Delete real-time event
-  const deleteRealtimeEvent = async (eventId: string) => {
-    const eventRef = ref(rtdb, `events/${eventId}`);
-    await remove(eventRef);
-  };
-
-  // Send real-time notification
-  const sendRealtimeNotification = async (notification: {
-    title: string;
-    message: string;
-    type: 'info' | 'warning' | 'emergency';
-    targetUsers?: string[];
-  }) => {
-    const notificationsRef = ref(rtdb, 'notifications');
-    await push(notificationsRef, {
-      ...notification,
-      timestamp: serverTimestamp(),
-      sentBy: user?.uid,
-      isRead: false
-    });
+  // Helper function to check if coordinates are within AFIT campus
+  const isWithinCampus = (coords: [number, number]): boolean => {
+    const campusCenter = [geofenceConfig.center.latitude, geofenceConfig.center.longitude];
+    const maxRadius = Math.max(...geofenceConfig.radii);
+    
+    // Simple distance calculation (Haversine formula simplified)
+    const deltaLat = coords[0] - campusCenter[0];
+    const deltaLng = coords[1] - campusCenter[1];
+    const distance = Math.sqrt(deltaLat * deltaLat + deltaLng * deltaLng) * 111000; // Convert to meters
+    
+    return distance <= maxRadius;
   };
 
   return {
-    onlineUsers,
-    realtimeEvents,
-    realtimeBuildings,
-    setUserOnline,
-    setUserOffline,
-    addRealtimeEvent,
-    updateRealtimeEvent,
-    deleteRealtimeEvent,
-    sendRealtimeNotification
+    ...data,
+    addAlert,
+    addIncident,
+    addCampusEvent,
+    getBuildingByCoords,
+    isWithinCampus,
+    campusCenter: [geofenceConfig.center.latitude, geofenceConfig.center.longitude] as [number, number],
+    campusBuildings: geofenceConfig.locations
   };
 };
