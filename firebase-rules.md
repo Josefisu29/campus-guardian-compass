@@ -1,7 +1,105 @@
 
-# Firebase Configuration and Security Rules
+# Firebase Security Rules for AFIT Campus Navigator
 
-## Firebase Realtime Database Rules
+## Firestore Rules
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isStaff() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'staff';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == userId &&
+                       request.resource.data.keys().hasAll(['name', 'email', 'role']) &&
+                       request.resource.data.role in ['student', 'staff', 'admin'];
+      
+      allow read: if isOwner(userId) || isAdmin() || isStaff();
+      
+      allow update: if isOwner(userId) && 
+                       request.resource.data.keys().hasAll(['name', 'email', 'role']) &&
+                       request.resource.data.role == resource.data.role;
+      
+      allow delete: if isAdmin();
+    }
+    
+    // Buildings collection
+    match /buildings/{buildingId} {
+      allow read: if true; // Public read access
+      allow write: if isAdmin();
+    }
+    
+    // Events collection
+    match /events/{eventId} {
+      allow read: if true; // Public read access
+      allow create: if isAdmin() || isStaff();
+      allow update: if isAdmin() || 
+                       (isStaff() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+    
+    // Alerts collection
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() || isStaff();
+    }
+    
+    // Incidents collection
+    match /incidents/{incidentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                       request.resource.data.reportedBy == request.auth.uid;
+      allow update: if isAdmin() || isStaff();
+      allow delete: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      allow create: if isAdmin() || isStaff();
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin() || 
+                       (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+    
+    // Analytics collection (admin only)
+    match /analytics/{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // System settings (admin only)
+    match /settings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}
+```
+
+## Realtime Database Rules
 
 ```json
 {
@@ -9,28 +107,13 @@
     ".read": false,
     ".write": false,
     
-    "alerts": {
+    "onlineUsers": {
       ".read": "auth != null",
-      ".write": "auth != null",
-      "$alertId": {
-        ".validate": "newData.hasChildren(['message', 'coords', 'timestamp', 'type'])",
-        "message": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "coords": {
-          ".validate": "newData.hasChildren(['0', '1'])",
-          "0": { ".validate": "newData.isNumber()" },
-          "1": { ".validate": "newData.isNumber()" }
-        },
-        "timestamp": {
-          ".validate": "newData.isString()"
-        },
-        "type": {
-          ".validate": "newData.isString()"
-        },
-        "createdAt": {
-          ".validate": "newData.val() == now"
-        }
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.hasChildren(['isOnline', 'lastSeen']) && 
+                     newData.child('isOnline').isBoolean() &&
+                     (newData.child('lastSeen').isNumber() || newData.child('lastSeen').val() == '.sv')"
       }
     },
     
@@ -38,220 +121,159 @@
       ".read": "auth != null",
       ".write": "auth != null",
       "$incidentId": {
-        ".validate": "newData.hasChildren(['title', 'description', 'location', 'coords', 'timestamp', 'reportedBy'])",
-        "title": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "description": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "location": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "coords": {
-          ".validate": "newData.hasChildren(['0', '1'])",
-          "0": { ".validate": "newData.isNumber()" },
-          "1": { ".validate": "newData.isNumber()" }
-        },
-        "timestamp": {
-          ".validate": "newData.isString()"
-        },
-        "reportedBy": {
-          ".validate": "newData.isString() && newData.val() == auth.uid"
-        },
-        "createdAt": {
-          ".validate": "newData.val() == now"
-        }
+        ".validate": "newData.hasChildren(['type', 'location', 'description', 'reportedBy', 'timestamp']) &&
+                     newData.child('reportedBy').val() == auth.uid &&
+                     newData.child('type').isString() &&
+                     newData.child('location').isString() &&
+                     newData.child('description').isString()"
       }
     },
     
-    "users": {
+    "shuttlePositions": {
       ".read": "auth != null",
-      "$userId": {
-        ".read": "auth != null && ($userId == auth.uid || root.child('users').child(auth.uid).child('role').val() == 'admin')",
-        ".write": "auth != null && $userId == auth.uid",
-        "points": {
-          ".validate": "newData.isNumber() && newData.val() >= 0"
-        },
-        "lastUpdated": {
-          ".validate": "newData.val() == now"
-        },
-        "isOnline": {
-          ".validate": "newData.isBoolean()"
-        },
-        "lastSeen": {
-          ".validate": "newData.val() == now"
-        }
+      ".write": "auth != null && 
+                (root.child('users').child(auth.uid).child('role').val() == 'admin' ||
+                 root.child('users').child(auth.uid).child('role').val() == 'staff')",
+      "$shuttleId": {
+        ".validate": "newData.hasChildren(['lat', 'lng', 'timestamp']) &&
+                     newData.child('lat').isNumber() &&
+                     newData.child('lng').isNumber() &&
+                     (newData.child('timestamp').isNumber() || newData.child('timestamp').val() == '.sv')"
       }
     },
     
-    "events": {
+    "geofenceEvents": {
       ".read": "auth != null",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'admin'",
+      ".write": "auth != null",
       "$eventId": {
-        ".validate": "newData.hasChildren(['title', 'description', 'buildingId', 'startTime', 'endTime'])",
-        "title": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "description": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "buildingId": {
-          ".validate": "newData.isString() && newData.val().length > 0"
-        },
-        "startTime": {
-          ".validate": "newData.isString()"
-        },
-        "endTime": {
-          ".validate": "newData.isString()"
-        },
-        "notificationLeadTime": {
-          ".validate": "newData.isNumber() && newData.val() >= 0"
-        }
+        ".validate": "newData.hasChildren(['userId', 'locationId', 'eventType', 'timestamp']) &&
+                     newData.child('userId').val() == auth.uid &&
+                     newData.child('eventType').val().matches(/^(enter|exit)$/) &&
+                     (newData.child('timestamp').isNumber() || newData.child('timestamp').val() == '.sv')"
       }
     },
     
-    "campus_data": {
+    "emergencyAlerts": {
       ".read": "auth != null",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() == 'admin'",
-      "buildings": {
-        "$buildingId": {
-          ".validate": "newData.hasChildren(['name', 'coordinates', 'type'])",
-          "name": { ".validate": "newData.isString()" },
-          "coordinates": {
-            ".validate": "newData.hasChildren(['0', '1'])",
-            "0": { ".validate": "newData.isNumber()" },
-            "1": { ".validate": "newData.isNumber()" }
-          },
-          "type": {
-            ".validate": "newData.isString() && (newData.val() == 'academic' || newData.val() == 'residential' || newData.val() == 'administrative' || newData.val() == 'recreational' || newData.val() == 'service')"
-          }
-        }
+      ".write": "auth != null && 
+                (root.child('users').child(auth.uid).child('role').val() == 'admin' ||
+                 root.child('users').child(auth.uid).child('role').val() == 'staff')",
+      "$alertId": {
+        ".validate": "newData.hasChildren(['title', 'message', 'severity', 'timestamp', 'createdBy']) &&
+                     newData.child('createdBy').val() == auth.uid &&
+                     newData.child('severity').val().matches(/^(low|medium|high|critical)$/) &&
+                     (newData.child('timestamp').isNumber() || newData.child('timestamp').val() == '.sv')"
+      }
+    },
+    
+    "buildingOccupancy": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$buildingId": {
+        ".validate": "newData.hasChildren(['current', 'capacity', 'lastUpdated']) &&
+                     newData.child('current').isNumber() &&
+                     newData.child('capacity').isNumber() &&
+                     (newData.child('lastUpdated').isNumber() || newData.child('lastUpdated').val() == '.sv')"
       }
     }
   }
 }
 ```
 
-## Firestore Security Rules
+## Firebase Storage Rules
 
 ```javascript
 rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users collection
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      allow read: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // User profile images
+    match /users/{userId}/profile/{fileName} {
+      allow read: if true; // Public read for profile images
+      allow write: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                      request.resource.contentType.matches('image/.*');
     }
     
-    // Admin-only collections
-    match /admin/{document=**} {
-      allow read, write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Building images (admin/staff only)
+    match /buildings/{buildingId}/{fileName} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null && 
+                      (isAdmin() || isStaff()) &&
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                      request.resource.contentType.matches('image/.*');
     }
     
-    // Campus events - admin write, authenticated read
-    match /events/{eventId} {
+    // Event images
+    match /events/{eventId}/{fileName} {
+      allow read: if true; // Public read
+      allow write: if request.auth != null && 
+                      (isAdmin() || isStaff()) &&
+                      request.resource.size < 10 * 1024 * 1024 && // 10MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+    
+    // Building floor plans and documents
+    match /documents/{category}/{fileName} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+                      (isAdmin() || isStaff()) &&
+                      request.resource.size < 50 * 1024 * 1024; // 50MB limit for documents
     }
     
-    // Building information - admin write, authenticated read
-    match /buildings/{buildingId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // Helper functions
+    function isAdmin() {
+      return request.auth != null && 
+             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Public campus data - read only for authenticated users
-    match /campus_info/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    function isStaff() {
+      return request.auth != null && 
+             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'staff';
     }
   }
 }
 ```
 
-## Setup Instructions
+## How to Apply These Rules
 
-1. **Deploy Realtime Database Rules:**
-   - Go to Firebase Console → Realtime Database → Rules
-   - Copy and paste the Realtime Database rules above
-   - Click "Publish"
+### For Firestore:
+1. Go to Firebase Console → Firestore Database → Rules
+2. Copy and paste the Firestore rules above
+3. Click "Publish"
 
-2. **Deploy Firestore Rules:**
-   - Go to Firebase Console → Firestore Database → Rules
-   - Copy and paste the Firestore rules above
-   - Click "Publish"
+### For Realtime Database:
+1. Go to Firebase Console → Realtime Database → Rules
+2. Copy and paste the Realtime Database rules above
+3. Click "Publish"
 
-3. **Environment Variables:**
-   ```env
-   VITE_FIREBASE_API_KEY=AIzaSyBKyJyDQUZ57D1aIj4NV2kv82mjO1k
-   VITE_FIREBASE_AUTH_DOMAIN=campnav-66eaa.firebaseapp.com
-   VITE_FIREBASE_DATABASE_URL=https://campnav-66eaa-default-rtdb.firebaseio.com/
-   VITE_FIREBASE_PROJECT_ID=campnav-66eaa
-   VITE_FIREBASE_STORAGE_BUCKET=campnav-66eaa.firebasestorage.app
-   VITE_FIREBASE_MESSAGING_SENDER_ID=762836324985
-   VITE_FIREBASE_APP_ID=1:762836324985:web:aadf3bfe6413cd100dbaa8
-   ```
+### For Storage:
+1. Go to Firebase Console → Storage → Rules
+2. Copy and paste the Storage rules above
+3. Click "Publish"
 
-## Database Structure
+## Rule Explanations
 
-### Realtime Database Structure:
-```
-/
-├── alerts/
-│   └── {alertId}
-│       ├── message: string
-│       ├── coords: [lat, lng]
-│       ├── timestamp: string
-│       ├── type: string
-│       └── createdAt: timestamp
-├── incidents/
-│   └── {incidentId}
-│       ├── title: string
-│       ├── description: string
-│       ├── location: string
-│       ├── coords: [lat, lng]
-│       ├── timestamp: string
-│       ├── reportedBy: userId
-│       └── createdAt: timestamp
-├── users/
-│   └── {userId}
-│       ├── points: number
-│       ├── lastUpdated: timestamp
-│       ├── isOnline: boolean
-│       └── lastSeen: timestamp
-└── events/
-    └── {eventId}
-        ├── title: string
-        ├── description: string
-        ├── buildingId: string
-        ├── startTime: string
-        ├── endTime: string
-        └── notificationLeadTime: number
-```
+### User Roles:
+- **Admin**: Full access to all collections and administrative functions
+- **Staff**: Can create/manage events, alerts, and moderate content
+- **Student**: Basic read access and ability to report incidents
 
-### Firestore Structure:
-```
-users/{userId}
-├── email: string
-├── displayName: string
-├── role: 'student' | 'admin'
-├── points: number
-├── createdAt: timestamp
-└── lastLogin: timestamp
+### Security Features:
+- Role-based access control (RBAC)
+- Data validation for required fields
+- File size and type restrictions for uploads
+- User ownership validation for personal data
+- Public read access for general campus information
+- Private access for sensitive data (incidents, notifications)
 
-buildings/{buildingId}
-├── name: string
-├── description: string
-├── coordinates: [lat, lng]
-├── type: string
-├── capacity: number
-├── facilities: array
-└── images: array
-```
+### Real-time Features:
+- Online user tracking with presence detection
+- Real-time incident reporting
+- Emergency alert broadcasting
+- Geofence event logging
+- Building occupancy monitoring
+
+These rules ensure data security while enabling the collaborative features needed for a campus navigation system.

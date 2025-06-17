@@ -1,9 +1,18 @@
 
-// Firebase Configuration and Initialization
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
+import { getMessaging, isSupported } from "firebase/messaging";
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyBKyJyDQUZ57D1aIj4NV2kv1nWv82mjO1k",
   authDomain: "campnav-66eaa.firebaseapp.com",
-  databaseURL: "https://campnav-66eaa-default-rtdb.firebaseio.com/",
+  databaseURL: "https://campnav-66eaa-default-rtdb.firebaseio.com",
   projectId: "campnav-66eaa",
   storageBucket: "campnav-66eaa.firebasestorage.app",
   messagingSenderId: "762836324985",
@@ -12,55 +21,39 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 
 // Initialize Firebase services
-const auth = firebase.auth();
-const db = firebase.firestore();
-const rtdb = firebase.database();
-let messaging = null;
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const rtdb = getDatabase(app);
 
 // Initialize messaging if supported
-if (firebase.messaging.isSupported()) {
-  messaging = firebase.messaging();
-  
-  // Request notification permission
-  messaging.requestPermission().then(() => {
-    console.log('Notification permission granted');
-    return messaging.getToken();
-  }).then((token) => {
-    console.log('FCM Token:', token);
-    // Store token in user profile
-    if (auth.currentUser) {
-      db.collection('users').doc(auth.currentUser.uid).update({
-        fcmToken: token
-      });
+let messaging = null;
+if (typeof window !== 'undefined') {
+  isSupported().then((supported) => {
+    if (supported) {
+      messaging = getMessaging(app);
     }
-  }).catch((err) => {
-    console.log('Unable to get permission or token', err);
-  });
-
-  // Handle foreground messages
-  messaging.onMessage((payload) => {
-    console.log('Message received:', payload);
-    showNotification(payload.notification.title, payload.notification.body);
   });
 }
 
-// Firestore offline persistence
-db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    console.log('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-  } else if (err.code === 'unimplemented') {
-    console.log('The current browser does not support persistence.');
-  }
+export { messaging };
+export default app;
+
+// Enable offline persistence for Firestore
+import { enableNetwork, disableNetwork } from "firebase/firestore";
+
+// Setup offline detection
+window.addEventListener('online', () => {
+  enableNetwork(db).then(() => {
+    console.log('Firestore: Back online');
+  });
 });
 
-// Export for global use
-window.firebaseApp = {
-  auth,
-  db,
-  rtdb,
-  messaging,
-  firebase
-};
+window.addEventListener('offline', () => {
+  console.log('Firestore: Going offline');
+});
+
+console.log('Firebase initialized successfully');
