@@ -12,6 +12,7 @@ import { getMessaging, isSupported } from "firebase/messaging";
 const firebaseConfig = {
   apiKey: "AIzaSyCnNj7hLoVHMOsTKJ5YulMAr3xF050HwLg",
   authDomain: "mycampus-aeeb6.firebaseapp.com",
+  databaseURL: "https://mycampus-aeeb6-default-rtdb.firebaseio.com/",
   projectId: "mycampus-aeeb6",
   storageBucket: "mycampus-aeeb6.firebasestorage.app",
   messagingSenderId: "365444920677",
